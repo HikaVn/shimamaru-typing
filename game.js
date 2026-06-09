@@ -431,6 +431,17 @@ const FINGER_REACH_LIMITS = {
   "right-pinky": { angle: 52, height: 3.05, minHeight: 1.42 }
 };
 
+const FINGER_REST_ANGLES = {
+  "left-pinky": 8,
+  "left-ring": 7,
+  "left-middle": 5,
+  "left-index": 11,
+  "right-index": -11,
+  "right-middle": -5,
+  "right-ring": -7,
+  "right-pinky": -8
+};
+
 const KEYBOARD_LAYOUTS = {
   jis: {
     label: "日本語配列",
@@ -1749,9 +1760,11 @@ function getHandLayout(handSide) {
   const keyboardHeight = els.gameKeyboard.getBoundingClientRect().height;
   const knuckleY = keyboardHeight - keyHeight * 0.22;
   const baseY = knuckleY + keyHeight * 0.98;
-  const palmWidth = maxX - minX + keyHeight * 2.45;
+  const outerPalmPad = keyHeight * 1.05;
+  const innerPalmPad = keyHeight * 0.08;
+  const palmWidth = maxX - minX + outerPalmPad + innerPalmPad;
   const palmHeight = keyHeight * 2.25;
-  const palmLeft = minX - keyHeight * 1.18;
+  const palmLeft = handSide === "left" ? minX - outerPalmPad : minX - innerPalmPad;
   const palmTop = knuckleY - keyHeight * 0.08;
   return { baseY, knuckleY, palmLeft, palmTop, palmWidth, palmHeight, keyHeight };
 }
@@ -1799,8 +1812,8 @@ function getFingerShape(fingerId, targetKeyEl, layout) {
   const minHeight = layout.keyHeight * (limits.minHeight || 1.42);
   const maxHeight = layout.keyHeight * limits.height;
   const height = clamp(distance + layout.keyHeight * 0.28, minHeight, maxHeight);
-  const rawAngle = Math.atan2(dx, -dy) * 180 / Math.PI;
-  const angle = clamp(rawAngle, -limits.angle, limits.angle);
+  const restAngle = FINGER_REST_ANGLES[fingerId] || 0;
+  const angle = clamp(restAngle, -limits.angle, limits.angle);
   return createSegmentShape(baseX, baseY, width, height, angle);
 }
 
