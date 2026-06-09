@@ -420,28 +420,6 @@ const HAND_FINGERS = {
   right: ["right-index", "right-middle", "right-ring", "right-pinky"]
 };
 
-const FINGER_REACH_LIMITS = {
-  "left-pinky": { angle: 52, height: 3.05, minHeight: 1.42 },
-  "left-ring": { angle: 42, height: 2.7, minHeight: 1.62 },
-  "left-middle": { angle: 38, height: 2.55, minHeight: 1.82 },
-  "left-index": { angle: 46, height: 2.85, minHeight: 1.7 },
-  "right-index": { angle: 46, height: 2.85, minHeight: 1.7 },
-  "right-middle": { angle: 38, height: 2.55, minHeight: 1.82 },
-  "right-ring": { angle: 42, height: 2.7, minHeight: 1.62 },
-  "right-pinky": { angle: 52, height: 3.05, minHeight: 1.42 }
-};
-
-const FINGER_REST_ANGLES = {
-  "left-pinky": 30,
-  "left-ring": 30,
-  "left-middle": 30,
-  "left-index": 30,
-  "right-index": -30,
-  "right-middle": -30,
-  "right-ring": -30,
-  "right-pinky": -30
-};
-
 const KEYBOARD_LAYOUTS = {
   jis: {
     label: "日本語配列",
@@ -713,7 +691,7 @@ function setupKeyboardFingerOverlay() {
     svg.classList.add("keyboard-hand-svg");
     svg.setAttribute("focusable", "false");
     svg.setAttribute("overflow", "visible");
-    ["palm", ...HAND_FINGERS[handSide], "thumb"].forEach((part) => {
+    [...HAND_FINGERS[handSide], "thumb"].forEach((part) => {
       const shape = document.createElementNS("http://www.w3.org/2000/svg", "path");
       shape.classList.add("keyboard-hand-shape");
       shape.dataset.part = part;
@@ -1783,7 +1761,6 @@ function buildHandPaths(handSide, activeFingerId, targetKeyEl, layout) {
   if (!fingerShapes.length) return [];
 
   return [
-    buildPalmBlobPath(layout),
     ...fingerShapes.map(segmentToRoundedPath),
     thumbShape ? segmentToRoundedPath(thumbShape) : ""
   ].filter(Boolean);
@@ -1802,13 +1779,7 @@ function getFingerShape(fingerId, targetKeyEl, layout) {
   const baseY = layout.knuckleY;
   const targetX = targetRect.centerX;
   const targetY = targetRect.centerY + targetRect.height * 0.08;
-  if (targetKeyEl) {
-    return createSegmentShapeBetween(baseX, baseY, targetX, targetY, width);
-  }
-  const limits = FINGER_REACH_LIMITS[fingerId] || { angle: 42, height: 2.65 };
-  const restAngle = FINGER_REST_ANGLES[fingerId] || 0;
-  const angle = clamp(restAngle, -limits.angle, limits.angle);
-  return createSegmentShapeToTip(targetX, targetY, baseY, width, angle);
+  return createSegmentShapeBetween(baseX, baseY, targetX, targetY, width);
 }
 
 function getThumbShape(handSide, targetKeyEl, layout) {
@@ -1835,53 +1806,6 @@ function getThumbShape(handSide, targetKeyEl, layout) {
   return createTaperedSegmentShapeBetween(baseX, baseY, baseX + dx * scale, baseY + dy * scale, baseWidth, tipWidth);
 }
 
-function createSegmentShape(baseX, baseY, width, height, angle) {
-  const radians = angle * Math.PI / 180;
-  const directionX = Math.sin(radians);
-  const directionY = -Math.cos(radians);
-  const normalX = Math.cos(radians);
-  const normalY = Math.sin(radians);
-  const halfWidth = width / 2;
-  const tipX = baseX + directionX * height;
-  const tipY = baseY + directionY * height;
-  const capLift = width * 0.45;
-  return {
-    baseX,
-    baseY,
-    tipX,
-    tipY,
-    leftBaseX: baseX - normalX * halfWidth,
-    leftBaseY: baseY - normalY * halfWidth,
-    rightBaseX: baseX + normalX * halfWidth,
-    rightBaseY: baseY + normalY * halfWidth,
-    leftTipX: tipX - normalX * halfWidth,
-    leftTipY: tipY - normalY * halfWidth,
-    rightTipX: tipX + normalX * halfWidth,
-    rightTipY: tipY + normalY * halfWidth,
-    leftCapX: tipX - normalX * halfWidth + directionX * capLift,
-    leftCapY: tipY - normalY * halfWidth + directionY * capLift,
-    rightCapX: tipX + normalX * halfWidth + directionX * capLift,
-    rightCapY: tipY + normalY * halfWidth + directionY * capLift,
-    innerBaseX: baseX - normalX * halfWidth,
-    innerBaseY: baseY - normalY * halfWidth,
-    outerBaseX: baseX + normalX * halfWidth,
-    outerBaseY: baseY + normalY * halfWidth,
-    innerTipX: tipX - normalX * halfWidth,
-    innerTipY: tipY - normalY * halfWidth,
-    outerTipX: tipX + normalX * halfWidth,
-    outerTipY: tipY + normalY * halfWidth
-  };
-}
-
-function createSegmentShapeToTip(tipX, tipY, baseY, width, angle) {
-  const radians = angle * Math.PI / 180;
-  const directionX = Math.sin(radians);
-  const directionY = -Math.cos(radians);
-  const height = Math.max(width * 1.2, (tipY - baseY) / directionY);
-  const baseX = tipX - directionX * height;
-  return createSegmentShape(baseX, baseY, width, height, angle);
-}
-
 function createSegmentShapeBetween(baseX, baseY, tipX, tipY, width) {
   const dx = tipX - baseX;
   const dy = tipY - baseY;
@@ -1897,10 +1821,10 @@ function createSegmentShapeBetween(baseX, baseY, tipX, tipY, width) {
     baseY,
     tipX,
     tipY,
-    leftBaseX: baseX - normalX * halfWidth,
-    leftBaseY: baseY - normalY * halfWidth,
-    rightBaseX: baseX + normalX * halfWidth,
-    rightBaseY: baseY + normalY * halfWidth,
+    leftBaseX: baseX - halfWidth,
+    leftBaseY: baseY,
+    rightBaseX: baseX + halfWidth,
+    rightBaseY: baseY,
     leftTipX: tipX - normalX * halfWidth,
     leftTipY: tipY - normalY * halfWidth,
     rightTipX: tipX + normalX * halfWidth,
@@ -1941,28 +1865,6 @@ function createTaperedSegmentShapeBetween(baseX, baseY, tipX, tipY, baseWidth, t
     rightCapX: tipX + normalX * tipHalfWidth + directionX * capLift,
     rightCapY: tipY + normalY * tipHalfWidth + directionY * capLift
   };
-}
-
-function buildPalmBlobPath(layout) {
-  const left = layout.palmLeft;
-  const top = layout.knuckleY + layout.keyHeight * 0.04;
-  const width = layout.palmWidth;
-  const height = layout.palmHeight * 0.82;
-  const right = left + width;
-  const bottom = top + height;
-  const rx = width * 0.22;
-  const ry = height * 0.42;
-  return [
-    `M ${left + rx} ${top}`,
-    `C ${left + width * 0.08} ${top} ${left} ${top + height * 0.18} ${left} ${top + ry}`,
-    `L ${left} ${bottom - ry}`,
-    `C ${left} ${bottom - height * 0.12} ${left + width * 0.08} ${bottom} ${left + rx} ${bottom}`,
-    `L ${right - rx} ${bottom}`,
-    `C ${right - width * 0.08} ${bottom} ${right} ${bottom - height * 0.12} ${right} ${bottom - ry}`,
-    `L ${right} ${top + ry}`,
-    `C ${right} ${top + height * 0.18} ${right - width * 0.08} ${top} ${right - rx} ${top}`,
-    "Z"
-  ].join(" ");
 }
 
 function segmentToRoundedPath(segment) {
