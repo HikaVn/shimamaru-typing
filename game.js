@@ -420,6 +420,17 @@ const HAND_FINGERS = {
   right: ["right-index", "right-middle", "right-ring", "right-pinky"]
 };
 
+const FINGER_REACH_LIMITS = {
+  "left-pinky": { angle: 52, height: 3.05 },
+  "left-ring": { angle: 42, height: 2.7 },
+  "left-middle": { angle: 38, height: 2.55 },
+  "left-index": { angle: 46, height: 2.85 },
+  "right-index": { angle: 46, height: 2.85 },
+  "right-middle": { angle: 38, height: 2.55 },
+  "right-ring": { angle: 42, height: 2.7 },
+  "right-pinky": { angle: 52, height: 3.05 }
+};
+
 const KEYBOARD_LAYOUTS = {
   jis: {
     label: "日本語配列",
@@ -683,24 +694,17 @@ function setupKeyboardFingerOverlay() {
   overlay.className = "keyboard-hand-overlay";
   overlay.setAttribute("aria-hidden", "true");
 
-  Object.entries(HAND_FINGERS).forEach(([handSide, fingerIds]) => {
+  Object.keys(HAND_FINGERS).forEach((handSide) => {
     const hand = document.createElement("div");
     hand.className = `keyboard-hand ${handSide}-keyboard-hand`;
     hand.dataset.hand = handSide;
-    const palm = document.createElement("span");
-    palm.className = "keyboard-palm";
-    hand.append(palm);
-    fingerIds.forEach((fingerId) => {
-      const finger = document.createElement("span");
-      finger.className = `keyboard-hand-finger ${fingerId}`;
-      finger.dataset.finger = fingerId;
-      hand.append(finger);
-    });
-    const thumb = document.createElement("span");
-    thumb.className = "keyboard-thumb";
-    thumb.dataset.finger = "thumb";
-    thumb.dataset.hand = handSide;
-    hand.append(thumb);
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.classList.add("keyboard-hand-svg");
+    svg.setAttribute("focusable", "false");
+    const shape = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    shape.classList.add("keyboard-hand-shape");
+    svg.append(shape);
+    hand.append(svg);
     overlay.append(hand);
   });
 
@@ -776,6 +780,10 @@ function showKeyboardSetupIfNeeded() {
   if (hasSavedKeyboardLayout()) return;
   els.keyboardSetup.classList.remove("hidden");
   applyKeyboardLayout();
+}
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
 }
 
 function createTutorialState() {
@@ -1673,34 +1681,23 @@ function getPhysicalKeyForTarget(target) {
   return keyEl?.dataset.key || target;
 }
 
-function getFingerLabel(fingerId) {
-  if (fingerId === "thumb") return "親指";
-  return FINGER_GROUPS.find((group) => group.id === fingerId)?.label || "担当指";
-}
-
 function renderFingerGuide(nextKey) {
   const overlay = els.gameKeyboard.querySelector(".keyboard-hand-overlay");
   if (!overlay) return;
   const activeFingerId = getFingerForKey(nextKey);
   const targetKeyEl = getTargetKeyElement(nextKey);
+  const keyboardRect = els.gameKeyboard.getBoundingClientRect();
 
   overlay.querySelectorAll(".keyboard-hand").forEach((hand) => {
     const handSide = hand.dataset.hand;
     const layout = getHandLayout(handSide);
     if (!layout) return;
-    positionPalm(hand.querySelector(".keyboard-palm"), layout);
-    HAND_FINGERS[handSide].forEach((fingerId) => {
-      const finger = hand.querySelector(`[data-finger="${fingerId}"]`);
-      const homeKeyEl = getHomeKeyElement(fingerId);
-      const anchorKeyEl = fingerId === activeFingerId && targetKeyEl ? targetKeyEl : homeKeyEl;
-      finger.classList.remove("active", "hit", "miss");
-      finger.classList.toggle("active", fingerId === activeFingerId);
-      positionFingerFromPalm(finger, homeKeyEl, anchorKeyEl, layout);
-    });
-    const thumb = hand.querySelector(".keyboard-thumb");
-    thumb.classList.remove("active", "hit", "miss");
-    thumb.classList.toggle("active", activeFingerId === "thumb");
-    positionThumbFromPalm(thumb, handSide, activeFingerId === "thumb" ? targetKeyEl : null, layout);
+    const svg = hand.querySelector(".keyboard-hand-svg");
+    const shape = hand.querySelector(".keyboard-hand-shape");
+    svg.setAttribute("viewBox", `0 0 ${keyboardRect.width} ${keyboardRect.height}`);
+    shape.setAttribute("d", buildHandPath(handSide, activeFingerId, targetKeyEl, layout));
+    hand.classList.remove("hit", "miss");
+    hand.classList.toggle("active", isFingerOnHand(activeFingerId, handSide));
   });
   renderKeyboardFingerStatus(nextKey);
 }
@@ -1749,22 +1746,87 @@ function getHandLayout(handSide) {
   return { baseY, palmLeft, palmTop, palmWidth, palmHeight, keyHeight };
 }
 
-function positionPalm(palm, layout) {
-  if (!palm || !layout) return;
-  palm.style.left = `${layout.palmLeft}px`;
-  palm.style.top = `${layout.palmTop}px`;
-  palm.style.width = `${layout.palmWidth}px`;
-  palm.style.height = `${layout.palmHeight}px`;
+function isFingerOnHand(fingerId, handSide) {
+  if (fingerId === "thumb") return true;
+  return HAND_FINGERS[handSide].includes(fingerId);
 }
 
-function positionFingerFromPalm(finger, homeKeyEl, targetKeyEl, layout) {
-  if (!finger || !homeKeyEl || !targetKeyEl || !layout) {
-    finger?.classList.add("hidden");
-    return;
+function buildHandPath(handSide, activeFingerId, targetKeyEl, layout) {
+  const fingerShapes = HAND_FINGERS[handSide]
+    .map((fingerId) => getFingerShape(fingerId, fingerId === activeFingerId ? targetKeyEl : null, layout))
+    .filter(Boolean)
+    .sort((a, b) => a.baseX - b.baseX);
+  const thumbShape = getThumbShape(handSide, activeFingerId === "thumb" ? targetKeyEl : null, layout);
+  if (!fingerShapes.length) return "";
+
+  const palmLeft = layout.palmLeft;
+  const palmRight = layout.palmLeft + layout.palmWidth;
+  const palmTop = layout.palmTop;
+  const palmBottom = layout.palmTop + layout.palmHeight;
+  const radius = layout.keyHeight * 0.42;
+  const first = fingerShapes[0];
+  const last = fingerShapes[fingerShapes.length - 1];
+  const commands = [
+    `M ${palmLeft + radius} ${palmTop}`,
+    `Q ${palmLeft} ${palmTop} ${palmLeft} ${palmTop + radius}`,
+    `L ${palmLeft} ${palmBottom - radius}`,
+    `Q ${palmLeft} ${palmBottom} ${palmLeft + radius} ${palmBottom}`,
+    `L ${thumbShape?.innerBaseX || palmLeft + radius} ${thumbShape?.innerBaseY || palmBottom}`
+  ];
+
+  if (thumbShape && handSide === "right") {
+    commands.push(
+      `L ${thumbShape.innerTipX} ${thumbShape.innerTipY}`,
+      `Q ${thumbShape.tipX} ${thumbShape.tipY} ${thumbShape.outerTipX} ${thumbShape.outerTipY}`,
+      `L ${thumbShape.outerBaseX} ${thumbShape.outerBaseY}`
+    );
   }
-  finger.classList.remove("hidden");
+
+  commands.push(
+    `L ${palmRight - radius} ${palmBottom}`,
+    `Q ${palmRight} ${palmBottom} ${palmRight} ${palmBottom - radius}`
+  );
+
+  if (thumbShape && handSide === "left") {
+    commands.push(
+      `L ${thumbShape.outerBaseX} ${thumbShape.outerBaseY}`,
+      `L ${thumbShape.outerTipX} ${thumbShape.outerTipY}`,
+      `Q ${thumbShape.tipX} ${thumbShape.tipY} ${thumbShape.innerTipX} ${thumbShape.innerTipY}`,
+      `L ${thumbShape.innerBaseX} ${thumbShape.innerBaseY}`
+    );
+  }
+
+  commands.push(
+    `L ${palmRight} ${palmTop + radius}`,
+    `Q ${palmRight} ${palmTop} ${palmRight - radius} ${palmTop}`,
+    `L ${last.rightBaseX} ${last.rightBaseY}`
+  );
+
+  for (let index = fingerShapes.length - 1; index >= 0; index -= 1) {
+    const finger = fingerShapes[index];
+    commands.push(
+      `L ${finger.rightTipX} ${finger.rightTipY}`,
+      `Q ${finger.tipX} ${finger.tipY} ${finger.leftTipX} ${finger.leftTipY}`,
+      `L ${finger.leftBaseX} ${finger.leftBaseY}`
+    );
+    if (index > 0) {
+      const nextFinger = fingerShapes[index - 1];
+      commands.push(`Q ${(finger.leftBaseX + nextFinger.rightBaseX) / 2} ${layout.baseY - layout.keyHeight * 0.28} ${nextFinger.rightBaseX} ${nextFinger.rightBaseY}`);
+    }
+  }
+
+  commands.push(
+    `L ${first.leftBaseX} ${first.leftBaseY}`,
+    "Z"
+  );
+  return commands.join(" ");
+}
+
+function getFingerShape(fingerId, targetKeyEl, layout) {
+  const homeKeyEl = getHomeKeyElement(fingerId);
+  if (!homeKeyEl || !layout) return null;
   const homeRect = getKeyboardRelativeRect(homeKeyEl);
-  const targetRect = getKeyboardRelativeRect(targetKeyEl);
+  const targetRect = getKeyboardRelativeRect(targetKeyEl || homeKeyEl);
   const width = Math.max(24, Math.min(44, homeRect.width * 0.58));
   const baseX = homeRect.centerX;
   const baseY = layout.baseY;
@@ -1773,23 +1835,19 @@ function positionFingerFromPalm(finger, homeKeyEl, targetKeyEl, layout) {
   const dx = targetX - baseX;
   const dy = targetY - baseY;
   const distance = Math.hypot(dx, dy);
-  const height = Math.max(layout.keyHeight * 1.25, distance + layout.keyHeight * 0.38);
-  const angle = Math.atan2(dx, -dy) * 180 / Math.PI;
-  finger.style.width = `${width}px`;
-  finger.style.height = `${height}px`;
-  finger.style.left = `${baseX - width / 2}px`;
-  finger.style.top = `${baseY - height}px`;
-  finger.style.transform = `rotate(${angle}deg)`;
+  const limits = FINGER_REACH_LIMITS[fingerId] || { angle: 42, height: 2.65 };
+  const minHeight = layout.keyHeight * 1.22;
+  const maxHeight = layout.keyHeight * limits.height;
+  const height = clamp(distance + layout.keyHeight * 0.28, minHeight, maxHeight);
+  const rawAngle = Math.atan2(dx, -dy) * 180 / Math.PI;
+  const angle = clamp(rawAngle, -limits.angle, limits.angle);
+  return createSegmentShape(baseX, baseY, width, height, angle);
 }
 
-function positionThumbFromPalm(thumb, handSide, targetKeyEl, layout) {
-  if (!thumb || !layout) return;
+function getThumbShape(handSide, targetKeyEl, layout) {
+  if (!layout) return null;
   const spaceKeyEl = targetKeyEl || getHomeKeyElement("thumb");
-  if (!spaceKeyEl) {
-    thumb.classList.add("hidden");
-    return;
-  }
-  thumb.classList.remove("hidden");
+  if (!spaceKeyEl) return null;
   const spaceRect = getKeyboardRelativeRect(spaceKeyEl);
   const isLeft = handSide === "left";
   const baseX = isLeft ? layout.palmLeft + layout.palmWidth * 0.72 : layout.palmLeft + layout.palmWidth * 0.28;
@@ -1801,13 +1859,43 @@ function positionThumbFromPalm(thumb, handSide, targetKeyEl, layout) {
   const dy = targetY - baseY;
   const distance = Math.hypot(dx, dy);
   const width = Math.max(26, Math.min(44, layout.keyHeight * 0.7));
-  const height = Math.max(layout.keyHeight * 1.15, distance + layout.keyHeight * 0.2);
-  const angle = Math.atan2(dx, -dy) * 180 / Math.PI;
-  thumb.style.width = `${width}px`;
-  thumb.style.height = `${height}px`;
-  thumb.style.left = `${baseX - width / 2}px`;
-  thumb.style.top = `${baseY - height}px`;
-  thumb.style.transform = `rotate(${angle}deg)`;
+  const height = clamp(distance + layout.keyHeight * 0.18, layout.keyHeight * 1.05, layout.keyHeight * 2.25);
+  const rawAngle = Math.atan2(dx, -dy) * 180 / Math.PI;
+  const angle = clamp(rawAngle, -58, 58);
+  return createSegmentShape(baseX, baseY, width, height, angle);
+}
+
+function createSegmentShape(baseX, baseY, width, height, angle) {
+  const radians = angle * Math.PI / 180;
+  const directionX = Math.sin(radians);
+  const directionY = -Math.cos(radians);
+  const normalX = Math.cos(radians);
+  const normalY = Math.sin(radians);
+  const halfWidth = width / 2;
+  const tipX = baseX + directionX * height;
+  const tipY = baseY + directionY * height;
+  return {
+    baseX,
+    baseY,
+    tipX,
+    tipY,
+    leftBaseX: baseX - normalX * halfWidth,
+    leftBaseY: baseY - normalY * halfWidth,
+    rightBaseX: baseX + normalX * halfWidth,
+    rightBaseY: baseY + normalY * halfWidth,
+    leftTipX: tipX - normalX * halfWidth,
+    leftTipY: tipY - normalY * halfWidth,
+    rightTipX: tipX + normalX * halfWidth,
+    rightTipY: tipY + normalY * halfWidth,
+    innerBaseX: baseX - normalX * halfWidth,
+    innerBaseY: baseY - normalY * halfWidth,
+    outerBaseX: baseX + normalX * halfWidth,
+    outerBaseY: baseY + normalY * halfWidth,
+    innerTipX: tipX - normalX * halfWidth,
+    innerTipY: tipY - normalY * halfWidth,
+    outerTipX: tipX + normalX * halfWidth,
+    outerTipY: tipY + normalY * halfWidth
+  };
 }
 
 function renderKeyboardFingerStatus(nextKey) {
@@ -1836,9 +1924,10 @@ function flashGameKey(target, className) {
 function flashFingerGuide(target, className) {
   const fingerId = getFingerForKey(target);
   if (!fingerId) return;
-  const fingers = [...els.gameKeyboard.querySelectorAll(`[data-finger="${fingerId}"]`)];
-  fingers.forEach((finger) => finger.classList.add(className));
-  setTimeout(() => fingers.forEach((finger) => finger.classList.remove(className)), 220);
+  const hands = [...els.gameKeyboard.querySelectorAll(".keyboard-hand")]
+    .filter((hand) => isFingerOnHand(fingerId, hand.dataset.hand));
+  hands.forEach((hand) => hand.classList.add(className));
+  setTimeout(() => hands.forEach((hand) => hand.classList.remove(className)), 220);
 }
 
 function handleTutorialInput(event) {
