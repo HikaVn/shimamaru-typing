@@ -1787,7 +1787,7 @@ function buildHandPath(handSide, activeFingerId, targetKeyEl, layout) {
   }
 
   commands.push(
-    `C ${palmLeft + layout.keyHeight * 0.1} ${palmTop} ${first.leftBaseX - layout.keyHeight * 0.16} ${first.leftBaseY} ${first.leftBaseX} ${first.leftBaseY}`
+    `C ${palmLeft + layout.keyHeight * 0.08} ${palmTop + layout.keyHeight * 0.1} ${first.leftBaseX - layout.keyHeight * 0.04} ${first.leftBaseY} ${first.leftBaseX} ${first.leftBaseY}`
   );
 
   for (let index = 0; index < fingerShapes.length; index += 1) {
@@ -1804,7 +1804,7 @@ function buildHandPath(handSide, activeFingerId, targetKeyEl, layout) {
   }
 
   commands.push(
-    `C ${last.rightBaseX + layout.keyHeight * 0.16} ${last.rightBaseY} ${palmRight - layout.keyHeight * 0.1} ${palmTop} ${palmRight} ${shoulderY}`
+    `C ${last.rightBaseX + layout.keyHeight * 0.04} ${last.rightBaseY} ${palmRight - layout.keyHeight * 0.08} ${palmTop + layout.keyHeight * 0.1} ${palmRight} ${shoulderY}`
   );
 
   if (thumbShape && handSide === "left") {
@@ -1834,7 +1834,10 @@ function getFingerShape(fingerId, targetKeyEl, layout) {
   if (!homeKeyEl || !layout) return null;
   const homeRect = getKeyboardRelativeRect(homeKeyEl);
   const targetRect = getKeyboardRelativeRect(targetKeyEl || homeKeyEl);
-  const width = Math.max(30, Math.min(58, homeRect.width * 0.82));
+  const isPinky = fingerId.endsWith("pinky");
+  const width = isPinky
+    ? Math.max(28, Math.min(48, homeRect.width * 0.72))
+    : Math.max(30, Math.min(58, homeRect.width * 0.82));
   const baseX = homeRect.centerX;
   const baseY = layout.knuckleY;
   const targetX = targetRect.centerX;
@@ -1842,6 +1845,9 @@ function getFingerShape(fingerId, targetKeyEl, layout) {
   const dx = targetX - baseX;
   const dy = targetY - baseY;
   const distance = Math.hypot(dx, dy);
+  if (targetKeyEl) {
+    return createSegmentShapeBetween(baseX, baseY, targetX, targetY, width);
+  }
   const limits = FINGER_REACH_LIMITS[fingerId] || { angle: 42, height: 2.65 };
   const minHeight = layout.keyHeight * (limits.minHeight || 1.42);
   const maxHeight = layout.keyHeight * limits.height;
@@ -1857,19 +1863,26 @@ function getThumbShape(handSide, targetKeyEl, layout) {
   if (!spaceKeyEl) return null;
   const spaceRect = getKeyboardRelativeRect(spaceKeyEl);
   const isLeft = handSide === "left";
-  const baseX = isLeft ? layout.palmLeft + layout.palmWidth * 0.88 : layout.palmLeft + layout.palmWidth * 0.12;
-  const baseY = layout.palmTop + layout.palmHeight * 0.58;
-  const targetOffset = targetKeyEl ? 0 : (isLeft ? -0.16 : 0.16);
-  const targetX = spaceRect.centerX + spaceRect.width * targetOffset;
-  const targetY = spaceRect.centerY - layout.keyHeight * 0.18;
+  const baseX = isLeft ? layout.palmLeft + layout.palmWidth * 0.82 : layout.palmLeft + layout.palmWidth * 0.18;
+  const baseY = layout.palmTop + layout.palmHeight * 0.48;
+  const targetX = targetKeyEl
+    ? spaceRect.centerX + spaceRect.width * (isLeft ? -0.18 : 0.18)
+    : baseX + layout.keyHeight * (isLeft ? 0.96 : -0.96);
+  const targetY = targetKeyEl
+    ? spaceRect.centerY + layout.keyHeight * 0.04
+    : baseY + layout.keyHeight * 0.28;
   const dx = targetX - baseX;
   const dy = targetY - baseY;
   const distance = Math.hypot(dx, dy);
-  const width = Math.max(28, Math.min(48, layout.keyHeight * 0.72));
-  const maxReach = layout.keyHeight * 1.7;
-  const reach = clamp(distance, layout.keyHeight * 0.92, maxReach);
+  const baseWidth = Math.max(40, Math.min(68, layout.keyHeight * 1.04));
+  const tipWidth = Math.max(28, Math.min(50, layout.keyHeight * 0.76));
+  if (targetKeyEl) {
+    return createTaperedSegmentShapeBetween(baseX, baseY, targetX, targetY, baseWidth, tipWidth);
+  }
+  const maxReach = layout.keyHeight * 1.25;
+  const reach = clamp(distance, layout.keyHeight * 0.78, maxReach);
   const scale = distance ? reach / distance : 1;
-  return createSegmentShapeBetween(baseX, baseY, baseX + dx * scale, baseY + dy * scale, width);
+  return createTaperedSegmentShapeBetween(baseX, baseY, baseX + dx * scale, baseY + dy * scale, baseWidth, tipWidth);
 }
 
 function createSegmentShape(baseX, baseY, width, height, angle) {
@@ -1937,6 +1950,37 @@ function createSegmentShapeBetween(baseX, baseY, tipX, tipY, width) {
     leftCapY: tipY - normalY * halfWidth + directionY * capLift,
     rightCapX: tipX + normalX * halfWidth + directionX * capLift,
     rightCapY: tipY + normalY * halfWidth + directionY * capLift
+  };
+}
+
+function createTaperedSegmentShapeBetween(baseX, baseY, tipX, tipY, baseWidth, tipWidth) {
+  const dx = tipX - baseX;
+  const dy = tipY - baseY;
+  const distance = Math.hypot(dx, dy) || 1;
+  const directionX = dx / distance;
+  const directionY = dy / distance;
+  const normalX = -directionY;
+  const normalY = directionX;
+  const baseHalfWidth = baseWidth / 2;
+  const tipHalfWidth = tipWidth / 2;
+  const capLift = tipWidth * 0.52;
+  return {
+    baseX,
+    baseY,
+    tipX,
+    tipY,
+    leftBaseX: baseX - normalX * baseHalfWidth,
+    leftBaseY: baseY - normalY * baseHalfWidth,
+    rightBaseX: baseX + normalX * baseHalfWidth,
+    rightBaseY: baseY + normalY * baseHalfWidth,
+    leftTipX: tipX - normalX * tipHalfWidth,
+    leftTipY: tipY - normalY * tipHalfWidth,
+    rightTipX: tipX + normalX * tipHalfWidth,
+    rightTipY: tipY + normalY * tipHalfWidth,
+    leftCapX: tipX - normalX * tipHalfWidth + directionX * capLift,
+    leftCapY: tipY - normalY * tipHalfWidth + directionY * capLift,
+    rightCapX: tipX + normalX * tipHalfWidth + directionX * capLift,
+    rightCapY: tipY + normalY * tipHalfWidth + directionY * capLift
   };
 }
 
