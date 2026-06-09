@@ -1761,72 +1761,11 @@ function buildHandPath(handSide, activeFingerId, targetKeyEl, layout) {
   const thumbShape = getThumbShape(handSide, activeFingerId === "thumb" ? targetKeyEl : null, layout);
   if (!fingerShapes.length) return "";
 
-  const palmLeft = layout.palmLeft;
-  const palmRight = layout.palmLeft + layout.palmWidth;
-  const palmTop = layout.palmTop;
-  const palmBottom = layout.palmTop + layout.palmHeight;
-  const radius = layout.keyHeight * 0.9;
-  const shoulderY = palmTop + layout.keyHeight * 0.42;
-  const first = fingerShapes[0];
-  const last = fingerShapes[fingerShapes.length - 1];
-  const commands = [`M ${palmLeft + radius} ${palmBottom}`];
-
-  if (thumbShape && handSide === "right") {
-    commands.push(
-      `C ${palmLeft + layout.keyHeight * 0.18} ${palmBottom} ${thumbShape.leftBaseX} ${thumbShape.leftBaseY} ${thumbShape.leftBaseX} ${thumbShape.leftBaseY}`,
-      `L ${thumbShape.leftTipX} ${thumbShape.leftTipY}`,
-      `C ${thumbShape.leftCapX} ${thumbShape.leftCapY} ${thumbShape.rightCapX} ${thumbShape.rightCapY} ${thumbShape.rightTipX} ${thumbShape.rightTipY}`,
-      `L ${thumbShape.rightBaseX} ${thumbShape.rightBaseY}`,
-      `C ${palmLeft - layout.keyHeight * 0.28} ${palmTop + layout.keyHeight * 1.35} ${palmLeft - layout.keyHeight * 0.18} ${shoulderY} ${palmLeft} ${shoulderY}`
-    );
-  } else {
-    commands.push(
-      `Q ${palmLeft} ${palmBottom} ${palmLeft} ${palmBottom - radius}`,
-      `L ${palmLeft} ${shoulderY}`
-    );
-  }
-
-  commands.push(
-    `C ${palmLeft + layout.keyHeight * 0.08} ${palmTop + layout.keyHeight * 0.1} ${first.leftBaseX - layout.keyHeight * 0.04} ${first.leftBaseY} ${first.leftBaseX} ${first.leftBaseY}`
-  );
-
-  for (let index = 0; index < fingerShapes.length; index += 1) {
-    const finger = fingerShapes[index];
-    commands.push(
-      `L ${finger.leftTipX} ${finger.leftTipY}`,
-      `C ${finger.leftCapX} ${finger.leftCapY} ${finger.rightCapX} ${finger.rightCapY} ${finger.rightTipX} ${finger.rightTipY}`,
-      `L ${finger.rightBaseX} ${finger.rightBaseY}`
-    );
-    if (index < fingerShapes.length - 1) {
-      const nextFinger = fingerShapes[index + 1];
-      commands.push(`Q ${(finger.rightBaseX + nextFinger.leftBaseX) / 2} ${layout.knuckleY - layout.keyHeight * 0.08} ${nextFinger.leftBaseX} ${nextFinger.leftBaseY}`);
-    }
-  }
-
-  commands.push(
-    `C ${last.rightBaseX + layout.keyHeight * 0.04} ${last.rightBaseY} ${palmRight - layout.keyHeight * 0.08} ${palmTop + layout.keyHeight * 0.1} ${palmRight} ${shoulderY}`
-  );
-
-  if (thumbShape && handSide === "left") {
-    commands.push(
-      `C ${palmRight + layout.keyHeight * 0.18} ${shoulderY} ${palmRight + layout.keyHeight * 0.28} ${palmTop + layout.keyHeight * 1.35} ${thumbShape.leftBaseX} ${thumbShape.leftBaseY}`,
-      `L ${thumbShape.leftTipX} ${thumbShape.leftTipY}`,
-      `C ${thumbShape.leftCapX} ${thumbShape.leftCapY} ${thumbShape.rightCapX} ${thumbShape.rightCapY} ${thumbShape.rightTipX} ${thumbShape.rightTipY}`,
-      `L ${thumbShape.rightBaseX} ${thumbShape.rightBaseY}`,
-      `C ${thumbShape.rightBaseX} ${thumbShape.rightBaseY} ${palmRight - layout.keyHeight * 0.18} ${palmBottom} ${palmRight - radius} ${palmBottom}`
-    );
-  } else {
-    commands.push(
-      `L ${palmRight} ${palmBottom - radius}`,
-      `Q ${palmRight} ${palmBottom} ${palmRight - radius} ${palmBottom}`
-    );
-  }
-
-  commands.push(
-    `L ${palmLeft + radius} ${palmBottom}`,
-    "Z"
-  );
-  return commands.join(" ");
+  return [
+    buildPalmBlobPath(layout),
+    ...fingerShapes.map(segmentToRoundedPath),
+    thumbShape ? segmentToRoundedPath(thumbShape) : ""
+  ].filter(Boolean).join(" ");
 }
 
 function getFingerShape(fingerId, targetKeyEl, layout) {
@@ -1982,6 +1921,42 @@ function createTaperedSegmentShapeBetween(baseX, baseY, tipX, tipY, baseWidth, t
     rightCapX: tipX + normalX * tipHalfWidth + directionX * capLift,
     rightCapY: tipY + normalY * tipHalfWidth + directionY * capLift
   };
+}
+
+function buildPalmBlobPath(layout) {
+  const left = layout.palmLeft;
+  const top = layout.palmTop + layout.keyHeight * 0.44;
+  const width = layout.palmWidth;
+  const height = layout.palmHeight * 0.84;
+  const right = left + width;
+  const bottom = top + height;
+  const rx = width * 0.22;
+  const ry = height * 0.42;
+  return [
+    `M ${left + rx} ${top}`,
+    `C ${left + width * 0.08} ${top} ${left} ${top + height * 0.18} ${left} ${top + ry}`,
+    `L ${left} ${bottom - ry}`,
+    `C ${left} ${bottom - height * 0.12} ${left + width * 0.08} ${bottom} ${left + rx} ${bottom}`,
+    `L ${right - rx} ${bottom}`,
+    `C ${right - width * 0.08} ${bottom} ${right} ${bottom - height * 0.12} ${right} ${bottom - ry}`,
+    `L ${right} ${top + ry}`,
+    `C ${right} ${top + height * 0.18} ${right - width * 0.08} ${top} ${right - rx} ${top}`,
+    "Z"
+  ].join(" ");
+}
+
+function segmentToRoundedPath(segment) {
+  const baseCap = Math.min(18, Math.max(8, Math.hypot(segment.rightBaseX - segment.leftBaseX, segment.rightBaseY - segment.leftBaseY) * 0.28));
+  const directionX = (segment.tipX - segment.baseX) / (Math.hypot(segment.tipX - segment.baseX, segment.tipY - segment.baseY) || 1);
+  const directionY = (segment.tipY - segment.baseY) / (Math.hypot(segment.tipX - segment.baseX, segment.tipY - segment.baseY) || 1);
+  return [
+    `M ${segment.leftBaseX} ${segment.leftBaseY}`,
+    `L ${segment.leftTipX} ${segment.leftTipY}`,
+    `C ${segment.leftCapX} ${segment.leftCapY} ${segment.rightCapX} ${segment.rightCapY} ${segment.rightTipX} ${segment.rightTipY}`,
+    `L ${segment.rightBaseX} ${segment.rightBaseY}`,
+    `C ${segment.rightBaseX - directionX * baseCap} ${segment.rightBaseY - directionY * baseCap} ${segment.leftBaseX - directionX * baseCap} ${segment.leftBaseY - directionY * baseCap} ${segment.leftBaseX} ${segment.leftBaseY}`,
+    "Z"
+  ].join(" ");
 }
 
 function renderKeyboardFingerStatus(nextKey) {
