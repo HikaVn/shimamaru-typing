@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1540 360" role="img" aria-labelledby="title desc">
+  <title id="title">しままるタイピング</title>
+  <desc id="desc">白く丸くふわふわした雪のようなタイトルロゴ</desc>
+  <defs>
+    <filter id="fluffy-shadow" x="-12%" y="-28%" width="124%" height="156%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#5c8791" flood-opacity="0.2"/>
+      <feDropShadow dx="0" dy="3" stdDeviation="2" flood-color="#fff8e8" flood-opacity="0.95"/>
+    </filter>
+    <filter id="soft-fuzz" x="-8%" y="-18%" width="116%" height="136%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.022" numOctaves="2" seed="9"/>
+      <feDisplacementMap in="SourceGraphic" scale="4"/>
+    </filter>
+    <linearGradient id="snow-fill" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.58" stop-color="#fffdf5"/>
+      <stop offset="1" stop-color="#f7fbff"/>
+    </linearGradient>
+  </defs>
+  <g filter="url(#fluffy-shadow)">
+    <text x="770" y="224"
+      text-anchor="middle"
+      font-family="Meiryo, 'Hiragino Maru Gothic ProN', 'Yu Gothic', sans-serif"
+      font-size="148"
+      font-weight="900"
+      letter-spacing="0"
+      stroke="#d7f0f7"
+      stroke-width="34"
+      stroke-linejoin="round"
+      paint-order="stroke fill">しままるタイピング</text>
+    <text x="770" y="224"
+      text-anchor="middle"
+      font-family="Meiryo, 'Hiragino Maru Gothic ProN', 'Yu Gothic', sans-serif"
+      font-size="148"
+      font-weight="900"
+      letter-spacing="0"
+      stroke="#ffd8ad"
+      stroke-width="18"
+      stroke-linejoin="round"
+      paint-order="stroke fill">しままるタイピング</text>
+    <g filter="url(#soft-fuzz)">
+      <text x="770" y="224"
+        text-anchor="middle"
+        font-family="Meiryo, 'Hiragino Maru Gothic ProN', 'Yu Gothic', sans-serif"
+        font-size="148"
+        font-weight="900"
+        letter-spacing="0"
+        fill="url(#snow-fill)"
+        stroke="#ffffff"
+        stroke-width="4"
+        stroke-linejoin="round"
+        paint-order="stroke fill">しままるタイピング</text>
+    </g>
+  </g>
+  <g fill="#ffffff" opacity="0.92">
+    <circle cx="132" cy="78" r="8"/>
+    <circle cx="218" cy="266" r="6"/>
+    <circle cx="1294" cy="76" r="7"/>
+    <circle cx="1408" cy="244" r="5"/>
+    <circle cx="1218" cy="282" r="4"/>
+  </g>
+</svg>

@@ -1,0 +1,469 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>しままるタイピング</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="app" aria-live="polite">
+      <section class="keyboard-setup hidden" id="keyboardSetup" aria-label="キーボード初期設定">
+        <div class="keyboard-setup-panel">
+          <p class="eyebrow">はじめに</p>
+          <h2>使っているキーボードを選んでください</h2>
+          <div class="keyboard-choice-grid">
+            <button class="keyboard-choice recommended" type="button" data-keyboard-choice="jis">
+              <strong>日本語配列</strong>
+              <span class="choice-summary">Pの右に@キーがある</span>
+              <span class="layout-mini" aria-hidden="true">
+                <span class="mini-row">
+                  <span class="mini-key">2<br><small>"</small></span>
+                  <span class="mini-gap"></span>
+                  <span class="mini-key">P</span>
+                  <span class="mini-key highlight">@</span>
+                  <span class="mini-key">[</span>
+                </span>
+              </span>
+              <span class="choice-note">半/全、かな、変換などがある場合はこちらです。</span>
+            </button>
+            <button class="keyboard-choice" type="button" data-keyboard-choice="us">
+              <strong>英語配列</strong>
+              <span class="choice-summary">2キーに@が書いてある</span>
+              <span class="layout-mini" aria-hidden="true">
+                <span class="mini-row">
+                  <span class="mini-key highlight">2<br><small>@</small></span>
+                  <span class="mini-gap"></span>
+                  <span class="mini-key">P</span>
+                  <span class="mini-key">[</span>
+                  <span class="mini-key">]</span>
+                </span>
+              </span>
+              <span class="choice-note">Enter周辺がすっきりした英語キーボードはこちらです。</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section class="scene" id="titleScreen">
+        <div class="snow" aria-hidden="true"></div>
+        <div class="hero">
+          <div class="character-rig title-rig" aria-label="ふわふわのシマエナガ">
+            <img class="bird bird-large" src="shimaenaga-main.png" alt="">
+            <span class="blink blink-left"></span>
+            <span class="blink blink-right"></span>
+            <p class="intro-bubble">ぼくは、シマエナガのしままる🐦<br>ぼくといっしょに、タイピング森のおさんぽに出かけよう🎶</p>
+          </div>
+          <div class="title-copy">
+            <p class="eyebrow">雪の森さんぽ</p>
+            <h1 class="title-logo-heading">
+              <img class="title-logo" src="title-logo-canva.svg" alt="しままるタイピング">
+            </h1>
+            <p>正しく打って木の実を集めよう。ミスを減らすほど、シマエナガが遠くまでおさんぽできます。</p>
+          </div>
+          <div class="start-panel" aria-label="開始メニュー">
+            <div class="menu-feature">
+              <span>おすすめ</span>
+              <button class="primary today-start" id="startTodayPlan">今日のメニュー</button>
+            </div>
+            <details class="mode-menu" open>
+              <summary>練習を選ぶ</summary>
+              <div class="mode-groups" aria-label="モード選択">
+                <section class="mode-group">
+                  <h2>基本</h2>
+                  <div class="mode-actions">
+                    <button class="secondary" id="startTutorial">チュートリアル</button>
+                    <button class="secondary" id="startPractice">れんしゅう</button>
+                    <button class="secondary" id="startStory">ストーリー</button>
+                  </div>
+                </section>
+                <section class="mode-group">
+                  <h2>目的別</h2>
+                  <div class="mode-actions">
+                    <button class="secondary" id="startWeakKeys">苦手キー</button>
+                    <button class="secondary" id="startSymbols">記号・数字</button>
+                  </div>
+                </section>
+                <section class="mode-group">
+                  <h2>長文</h2>
+                  <div class="mode-actions">
+                    <button class="secondary" id="startLongform">ながぶん</button>
+                    <button class="secondary" id="startPastedText">話題でながぶん</button>
+                  </div>
+                </section>
+                <section class="mode-group">
+                  <h2>腕だめし</h2>
+                  <div class="mode-actions">
+                    <button class="secondary" id="startChallenge">チャレンジ</button>
+                    <button class="secondary" id="startLongformChallenge">ながぶんチャレンジ</button>
+                  </div>
+                </section>
+              </div>
+            </details>
+          </div>
+          <section class="schedule-panel" aria-label="練習スケジュール">
+            <div class="schedule-heading">
+              <div>
+                <p class="eyebrow">今日の練習</p>
+                <h2 id="todayMenu">メニューを準備中</h2>
+              </div>
+              <strong id="todayGoal">-</strong>
+            </div>
+            <div class="schedule-grid">
+              <div>
+                <span>連続練習</span>
+                <strong id="practiceStreak">0日</strong>
+              </div>
+              <div>
+                <span>今週の目標</span>
+                <strong id="weeklyGoal">0/5日</strong>
+              </div>
+              <div>
+                <span>目標WPM</span>
+                <strong id="targetWpm">80</strong>
+              </div>
+            </div>
+            <div class="week-plan" id="weekPlan"></div>
+            <div class="progress-grid">
+              <div class="stats-strip">
+                <div>
+                  <span>最高スコア</span>
+                  <strong id="bestScore">0</strong>
+                </div>
+                <div>
+                  <span>最高WPM</span>
+                  <strong id="bestWpm">0</strong>
+                </div>
+                <div>
+                  <span>平均正確率</span>
+                  <strong id="avgAccuracy">0%</strong>
+                </div>
+              </div>
+              <div class="practice-log" id="practiceLog">まだ練習記録がありません。</div>
+              <div class="wpm-trend" aria-label="WPM推移">
+                <div class="trend-header">
+                  <span>毎日のWPM</span>
+                  <div class="trend-mode" role="group" aria-label="WPM表示切替">
+                    <button class="trend-mode-button active" id="wpmModeBest" type="button">最高</button>
+                    <button class="trend-mode-button" id="wpmModeAvg" type="button">平均</button>
+                  </div>
+                  <strong id="wpmTrendSummary">まだ記録がありません</strong>
+                </div>
+                <div class="wpm-chart" id="wpmChart">まだ記録がありません。</div>
+              </div>
+              <div class="weak-key-panel">
+                <span>苦手キー</span>
+                <strong id="weakKeysSummary">まだ記録がありません</strong>
+              </div>
+            </div>
+            <details class="options-panel">
+              <summary>オプション</summary>
+              <div class="option-grid">
+                <div class="keyboard-layout-box">
+                  <div class="option-title">
+                    <strong>キーボード</strong>
+                    <span id="keyboardLayoutStatus">日本語配列</span>
+                  </div>
+                  <div class="keyboard-layout-options" role="group" aria-label="キーボード配列">
+                    <button class="secondary" type="button" data-keyboard-option="jis">JIS</button>
+                    <button class="secondary" type="button" data-keyboard-option="us">US</button>
+                  </div>
+                  <div class="keyboard-layout-reference" aria-label="配列の見分け方">
+                    <div>
+                      <span>JIS</span>
+                      <strong>P の右が @</strong>
+                    </div>
+                    <div>
+                      <span>US</span>
+                      <strong>2 の上が @</strong>
+                    </div>
+                  </div>
+                </div>
+                <div class="reminder-box" id="reminderBox">
+                  <div class="option-title">
+                    <strong>リマインド</strong>
+                    <span id="reminderStatus">リマインドはオフです</span>
+                  </div>
+                  <div class="reminder-controls">
+                    <label>
+                      通知時刻
+                      <input id="reminderTime" type="time" value="18:00">
+                    </label>
+                    <button class="secondary" id="toggleReminder">オン</button>
+                  </div>
+                </div>
+                <div class="bgm-box">
+                  <div class="option-title">
+                    <span>BGM</span>
+                    <strong id="bgmStatus">未追加</strong>
+                  </div>
+                  <div class="bgm-drop" id="bgmDrop">音声ファイルをドロップ</div>
+                  <div class="bgm-controls">
+                  <button class="secondary" id="bgmPrev" aria-label="前のBGM">←</button>
+                  <button class="secondary" id="bgmPlay" aria-label="BGM再生">▶</button>
+                  <button class="secondary" id="bgmPause" aria-label="BGM一時停止">⏸</button>
+                  <button class="secondary" id="bgmStop" aria-label="BGM停止">■</button>
+                  <button class="secondary" id="bgmNext" aria-label="次のBGM">→</button>
+                  <button class="secondary icon-toggle" id="bgmLoopMode" aria-label="BGMループ切り替え">↻1</button>
+                  <label>
+                    音量
+                    <input id="bgmVolume" type="range" min="0" max="1" step="0.05" value="0.35">
+                  </label>
+                </div>
+                  <span id="bgmCount">0曲</span>
+                  <div class="bgm-list" id="bgmList">リストは空です。</div>
+                  <button class="secondary bgm-clear-all" id="bgmClearAll">全部クリア</button>
+                </div>
+              </div>
+            </details>
+          </section>
+        </div>
+      </section>
+
+      <section class="story hidden" id="storyScreen">
+        <header class="hud tutorial-hud">
+          <button class="icon-button" id="storyToTitle" aria-label="タイトルへ戻る">←</button>
+          <div class="meter">
+            <span>進行</span>
+            <strong id="storyProgress">1/5</strong>
+          </div>
+          <div class="meter">
+            <span>星</span>
+            <strong id="storyStars">0</strong>
+          </div>
+          <div class="meter">
+            <span>次の目的</span>
+            <strong id="storyNext">雪の小道</strong>
+          </div>
+        </header>
+        <section class="story-panel">
+          <div>
+            <p class="eyebrow">森のおさんぽストーリー</p>
+            <h2>しままると雪の森へ</h2>
+            <p>ステージをクリアすると、次の場所へ進めるジュリ。最後まで打てばクリア、正確率で星が増えるジュリリ〜。</p>
+          </div>
+          <div class="story-map" id="storyMap"></div>
+        </section>
+      </section>
+
+      <section class="paste-screen hidden" id="pasteScreen">
+        <header class="hud tutorial-hud">
+          <button class="icon-button" id="pasteToTitle" aria-label="タイトルへ戻る">←</button>
+          <div class="meter">
+            <span>モード</span>
+            <strong>話題でながぶん</strong>
+          </div>
+          <div class="meter">
+            <span>出題</span>
+            <strong id="pasteCount">0文</strong>
+          </div>
+        </header>
+        <section class="paste-panel">
+          <p class="eyebrow">貼り付け練習</p>
+          <h2>ネットの話題を貼って練習</h2>
+          <textarea id="pasteText" placeholder="ニュースの見出しや話題の文章を貼り付けてください。短い文に分けて長文モードにします。"></textarea>
+          <p id="pastePreview">まだ文章がありません。</p>
+          <div class="title-actions">
+            <button class="primary" id="startPastedPractice">この文章で開始</button>
+            <button class="secondary" id="clearPastedText">クリア</button>
+          </div>
+        </section>
+      </section>
+
+      <section class="tutorial hidden" id="tutorialScreen">
+        <header class="hud tutorial-hud">
+          <button class="icon-button" id="tutorialToTitle" aria-label="タイトルへ戻る">←</button>
+          <div class="meter">
+            <span>ステップ</span>
+            <strong id="tutorialStep">1/7</strong>
+          </div>
+          <div class="meter">
+            <span>成功</span>
+            <strong id="tutorialHits">0</strong>
+          </div>
+          <div class="meter">
+            <span>ミス</span>
+            <strong id="tutorialMisses">0</strong>
+          </div>
+        </header>
+
+        <div class="tutorial-wrap">
+          <section class="lesson">
+            <p class="eyebrow" id="tutorialLabel">ホームポジション</p>
+            <h2 id="tutorialTitle">F と J に人差し指を置く</h2>
+            <p id="tutorialBody">左手の人差し指を F、右手の人差し指を J に置きます。A S D F と J K L ; が基本の待機場所です。</p>
+            <div class="finger-strip" id="fingerStrip"></div>
+            <div class="target-box">
+              <span>次に押すキー</span>
+              <strong id="tutorialTarget">F</strong>
+            </div>
+            <p class="typed tutorial-feedback" id="tutorialFeedback"></p>
+            <div class="title-actions">
+              <button class="primary" id="tutorialNext">次へ</button>
+              <button class="secondary" id="tutorialRestart">やり直す</button>
+            </div>
+          </section>
+
+          <section class="keyboard" aria-label="キーボード配置">
+            <div class="keyboard-row number-row">
+              <span class="key small-key" data-key="`">`</span>
+              <span class="key small-key" data-key="1">1</span>
+              <span class="key small-key" data-key="2">2</span>
+              <span class="key small-key" data-key="3">3</span>
+              <span class="key small-key" data-key="4">4</span>
+              <span class="key small-key" data-key="5">5</span>
+              <span class="key small-key" data-key="6">6</span>
+              <span class="key small-key" data-key="7">7</span>
+              <span class="key small-key" data-key="8">8</span>
+              <span class="key small-key" data-key="9">9</span>
+              <span class="key small-key" data-key="0">0</span>
+              <span class="key small-key" data-key="-">-</span>
+              <span class="key small-key" data-key="=">=</span>
+            </div>
+            <div class="keyboard-row top-row">
+              <span class="key wide-key">Tab</span>
+              <span class="key" data-key="q">Q</span>
+              <span class="key" data-key="w">W</span>
+              <span class="key" data-key="e">E</span>
+              <span class="key" data-key="r">R</span>
+              <span class="key" data-key="t">T</span>
+              <span class="key" data-key="y">Y</span>
+              <span class="key" data-key="u">U</span>
+              <span class="key" data-key="i">I</span>
+              <span class="key" data-key="o">O</span>
+              <span class="key" data-key="p">P</span>
+              <span class="key" data-key="[">[</span>
+              <span class="key" data-key="]">]</span>
+            </div>
+            <div class="keyboard-row home-row">
+              <span class="key wider-key">Caps</span>
+              <span class="key" data-key="a">A</span>
+              <span class="key" data-key="s">S</span>
+              <span class="key" data-key="d">D</span>
+              <span class="key home-key" data-key="f">F</span>
+              <span class="key" data-key="g">G</span>
+              <span class="key" data-key="h">H</span>
+              <span class="key home-key" data-key="j">J</span>
+              <span class="key" data-key="k">K</span>
+              <span class="key" data-key="l">L</span>
+              <span class="key" data-key=";">;</span>
+              <span class="key" data-key="'">'</span>
+            </div>
+            <div class="keyboard-row bottom-row">
+              <span class="key widest-key">Shift</span>
+              <span class="key" data-key="z">Z</span>
+              <span class="key" data-key="x">X</span>
+              <span class="key" data-key="c">C</span>
+              <span class="key" data-key="v">V</span>
+              <span class="key" data-key="b">B</span>
+              <span class="key" data-key="n">N</span>
+              <span class="key" data-key="m">M</span>
+              <span class="key" data-key=",">,</span>
+              <span class="key" data-key=".">.</span>
+              <span class="key" data-key="/">/</span>
+              <span class="key widest-key">Shift</span>
+            </div>
+            <div class="keyboard-row space-row">
+              <span class="key wide-key">Ctrl</span>
+              <span class="key wide-key">Alt</span>
+              <span class="key space-key" data-key=" ">Space</span>
+              <span class="key wide-key">Alt</span>
+              <span class="key wide-key">Ctrl</span>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section class="game hidden" id="gameScreen">
+        <header class="hud">
+          <button class="icon-button" id="backToTitle" aria-label="タイトルへ戻る">←</button>
+          <div class="meter">
+            <span id="timeLabel">時間</span>
+            <strong id="timeLeft">60</strong>
+          </div>
+          <div class="meter">
+            <span>スコア</span>
+            <strong id="score">0</strong>
+          </div>
+          <div class="meter">
+            <span>コンボ</span>
+            <strong id="combo">0</strong>
+          </div>
+          <div class="meter">
+            <span>正確率</span>
+            <strong id="accuracy">100%</strong>
+          </div>
+          <div class="mini-bgm" aria-label="BGM操作">
+            <span id="miniBgmStatus">BGMなし</span>
+            <div>
+              <button id="miniBgmPrev" aria-label="前のBGM">←</button>
+              <button id="miniBgmToggle" aria-label="BGM再生">▶</button>
+              <button id="miniBgmNext" aria-label="次のBGM">→</button>
+              <button id="miniBgmLoop" aria-label="BGMループ切り替え">↻1</button>
+            </div>
+          </div>
+        </header>
+
+        <div class="forest" id="forest">
+          <div class="moon" aria-hidden="true"></div>
+          <div class="trees trees-back" aria-hidden="true"></div>
+          <div class="trees trees-front" aria-hidden="true"></div>
+          <div class="path">
+            <div class="progress" id="walkProgress"></div>
+            <div class="runner" id="runner" aria-hidden="true">
+              <div class="character-rig runner-rig">
+                <img class="bird runner-bird" src="shimaenaga-main.png" alt="">
+                <span class="blink blink-left"></span>
+                <span class="blink blink-right"></span>
+                <span class="chirp-mark">ジュリ</span>
+              </div>
+            </div>
+            <div class="nuts" id="nuts" aria-hidden="true"></div>
+          </div>
+        </div>
+
+        <section class="typing-panel">
+          <div class="mode-row">
+            <div>
+              <span id="modeLabel">れんしゅう</span>
+              <strong id="difficultyLabel">やさしい</strong>
+            </div>
+            <div class="difficulty">
+              <button data-difficulty="easy" class="active">やさしい</button>
+              <button data-difficulty="normal">ふつう</button>
+              <button data-difficulty="hard">むずかしい</button>
+            </div>
+          </div>
+          <p class="story-note hidden" id="storyNote"></p>
+          <p class="word" id="wordDisplay">ゆき</p>
+          <p class="reading" id="readingDisplay">yuki</p>
+          <p class="typed" id="typedDisplay"></p>
+          <input id="typingInput" type="text" autocomplete="off" spellcheck="false" aria-label="タイピング入力">
+        </section>
+        <section class="keyboard game-keyboard" id="gameKeyboard" aria-label="入力ガイドキーボード"></section>
+      </section>
+
+      <section class="result hidden" id="resultScreen">
+        <div class="result-box">
+          <p class="eyebrow">リザルト</p>
+          <h2 id="rank">A</h2>
+          <div class="result-grid">
+            <div><span>スコア</span><strong id="finalScore">0</strong></div>
+            <div><span>WPM</span><strong id="finalWpm">0</strong></div>
+            <div><span>正確率</span><strong id="finalAccuracy">0%</strong></div>
+            <div><span>ミス</span><strong id="finalMisses">0</strong></div>
+            <div><span>最大コンボ</span><strong id="finalMaxCombo">0</strong></div>
+            <div><span>木の実</span><strong id="finalNuts">0</strong></div>
+          </div>
+          <p class="tip" id="resultTip"></p>
+          <div class="title-actions">
+            <button class="primary" id="retry">もう一度</button>
+            <button class="primary hidden" id="resultNextStory">次へ</button>
+            <button class="secondary" id="resultToTitle">タイトルへ</button>
+          </div>
+        </div>
+      </section>
+    </main>
+    <script src="game.js"></script>
+  </body>
+</html>
