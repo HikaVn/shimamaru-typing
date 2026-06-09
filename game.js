@@ -1810,9 +1810,10 @@ function getThumbShape(handSide, targetKeyEl, layout) {
   if (!spaceKeyEl) return null;
   const spaceRect = getKeyboardRelativeRect(spaceKeyEl);
   const isLeft = handSide === "left";
-  const baseX = layout.palmLeft + layout.palmWidth * 0.5;
+  const thumbInwardShift = layout.keyHeight * 0.82 * (isLeft ? 1 : -1);
+  const baseX = layout.palmLeft + layout.palmWidth * 0.5 + thumbInwardShift;
   const baseY = layout.palmTop + layout.palmHeight * 1.02;
-  const targetX = spaceRect.centerX + spaceRect.width * (isLeft ? -0.18 : 0.18);
+  const targetX = spaceRect.centerX + spaceRect.width * (isLeft ? -0.18 : 0.18) + thumbInwardShift;
   const targetY = spaceRect.centerY + layout.keyHeight * 0.04;
   const dx = targetX - baseX;
   const dy = targetY - baseY;
