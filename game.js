@@ -1802,19 +1802,13 @@ function getFingerShape(fingerId, targetKeyEl, layout) {
   const baseY = layout.knuckleY;
   const targetX = targetRect.centerX;
   const targetY = targetRect.centerY + targetRect.height * 0.08;
-  const dx = targetX - baseX;
-  const dy = targetY - baseY;
-  const distance = Math.hypot(dx, dy);
   if (targetKeyEl) {
     return createSegmentShapeBetween(baseX, baseY, targetX, targetY, width);
   }
   const limits = FINGER_REACH_LIMITS[fingerId] || { angle: 42, height: 2.65 };
-  const minHeight = layout.keyHeight * (limits.minHeight || 1.42);
-  const maxHeight = layout.keyHeight * limits.height;
-  const height = clamp(distance + layout.keyHeight * 0.28, minHeight, maxHeight);
   const restAngle = FINGER_REST_ANGLES[fingerId] || 0;
   const angle = clamp(restAngle, -limits.angle, limits.angle);
-  return createSegmentShape(baseX, baseY, width, height, angle);
+  return createSegmentShapeToTip(targetX, targetY, baseY, width, angle);
 }
 
 function getThumbShape(handSide, targetKeyEl, layout) {
@@ -1825,12 +1819,8 @@ function getThumbShape(handSide, targetKeyEl, layout) {
   const isLeft = handSide === "left";
   const baseX = layout.palmLeft + layout.palmWidth * 0.5;
   const baseY = layout.palmTop + layout.palmHeight * 1.02;
-  const targetX = targetKeyEl
-    ? spaceRect.centerX + spaceRect.width * (isLeft ? -0.18 : 0.18)
-    : baseX + layout.keyHeight * (isLeft ? 0.36 : -0.36);
-  const targetY = targetKeyEl
-    ? spaceRect.centerY + layout.keyHeight * 0.04
-    : baseY - layout.keyHeight * 0.98;
+  const targetX = spaceRect.centerX + spaceRect.width * (isLeft ? -0.18 : 0.18);
+  const targetY = spaceRect.centerY + layout.keyHeight * 0.04;
   const dx = targetX - baseX;
   const dy = targetY - baseY;
   const distance = Math.hypot(dx, dy);
@@ -1881,6 +1871,15 @@ function createSegmentShape(baseX, baseY, width, height, angle) {
     outerTipX: tipX + normalX * halfWidth,
     outerTipY: tipY + normalY * halfWidth
   };
+}
+
+function createSegmentShapeToTip(tipX, tipY, baseY, width, angle) {
+  const radians = angle * Math.PI / 180;
+  const directionX = Math.sin(radians);
+  const directionY = -Math.cos(radians);
+  const height = Math.max(width * 1.2, (tipY - baseY) / directionY);
+  const baseX = tipX - directionX * height;
+  return createSegmentShape(baseX, baseY, width, height, angle);
 }
 
 function createSegmentShapeBetween(baseX, baseY, tipX, tipY, width) {
