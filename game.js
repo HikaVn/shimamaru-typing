@@ -432,14 +432,14 @@ const FINGER_REACH_LIMITS = {
 };
 
 const FINGER_REST_ANGLES = {
-  "left-pinky": 20,
-  "left-ring": 18,
-  "left-middle": 17,
-  "left-index": 20,
-  "right-index": -20,
-  "right-middle": -17,
-  "right-ring": -18,
-  "right-pinky": -20
+  "left-pinky": 30,
+  "left-ring": 30,
+  "left-middle": 30,
+  "left-index": 30,
+  "right-index": -30,
+  "right-middle": -30,
+  "right-ring": -30,
+  "right-pinky": -30
 };
 
 const KEYBOARD_LAYOUTS = {
@@ -1823,14 +1823,14 @@ function getThumbShape(handSide, targetKeyEl, layout) {
   if (!spaceKeyEl) return null;
   const spaceRect = getKeyboardRelativeRect(spaceKeyEl);
   const isLeft = handSide === "left";
-  const baseX = isLeft ? layout.palmLeft + layout.palmWidth * 0.58 : layout.palmLeft + layout.palmWidth * 0.42;
-  const baseY = layout.palmTop + layout.palmHeight * 0.78;
+  const baseX = layout.palmLeft + layout.palmWidth * 0.5;
+  const baseY = layout.palmTop + layout.palmHeight * 1.02;
   const targetX = targetKeyEl
     ? spaceRect.centerX + spaceRect.width * (isLeft ? -0.18 : 0.18)
-    : baseX + layout.keyHeight * (isLeft ? 0.58 : -0.58);
+    : baseX + layout.keyHeight * (isLeft ? 0.36 : -0.36);
   const targetY = targetKeyEl
     ? spaceRect.centerY + layout.keyHeight * 0.04
-    : baseY - layout.keyHeight * 0.58;
+    : baseY - layout.keyHeight * 0.98;
   const dx = targetX - baseX;
   const dy = targetY - baseY;
   const distance = Math.hypot(dx, dy);
@@ -1946,9 +1946,9 @@ function createTaperedSegmentShapeBetween(baseX, baseY, tipX, tipY, baseWidth, t
 
 function buildPalmBlobPath(layout) {
   const left = layout.palmLeft;
-  const top = layout.knuckleY - layout.keyHeight * 0.22;
+  const top = layout.knuckleY + layout.keyHeight * 0.04;
   const width = layout.palmWidth;
-  const height = layout.palmHeight * 0.96;
+  const height = layout.palmHeight * 0.82;
   const right = left + width;
   const bottom = top + height;
   const rx = width * 0.22;
