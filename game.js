@@ -420,6 +420,17 @@ const HAND_FINGERS = {
   right: ["right-index", "right-middle", "right-ring", "right-pinky"]
 };
 
+const FINGER_REST_ANGLES = {
+  "left-pinky": 30,
+  "left-ring": 30,
+  "left-middle": 30,
+  "left-index": 30,
+  "right-index": -30,
+  "right-middle": -30,
+  "right-ring": -30,
+  "right-pinky": -30
+};
+
 const KEYBOARD_LAYOUTS = {
   jis: {
     label: "日本語配列",
@@ -1775,11 +1786,22 @@ function getFingerShape(fingerId, targetKeyEl, layout) {
   const width = isPinky
     ? Math.max(24, Math.min(40, homeRect.width * 0.58))
     : Math.max(30, Math.min(58, homeRect.width * 0.82));
-  const baseX = homeRect.centerX;
   const baseY = layout.knuckleY;
+  const homeTargetX = homeRect.centerX;
+  const homeTargetY = homeRect.centerY + homeRect.height * 0.08;
+  const baseX = getFixedFingerBaseX(fingerId, homeTargetX, homeTargetY, baseY);
   const targetX = targetRect.centerX;
   const targetY = targetRect.centerY + targetRect.height * 0.08;
   return createSegmentShapeBetween(baseX, baseY, targetX, targetY, width);
+}
+
+function getFixedFingerBaseX(fingerId, tipX, tipY, baseY) {
+  const angle = FINGER_REST_ANGLES[fingerId] || 0;
+  const radians = angle * Math.PI / 180;
+  const directionX = Math.sin(radians);
+  const directionY = -Math.cos(radians) || -1;
+  const height = (tipY - baseY) / directionY;
+  return tipX - directionX * height;
 }
 
 function getThumbShape(handSide, targetKeyEl, layout) {
