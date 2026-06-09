@@ -702,9 +702,12 @@ function setupKeyboardFingerOverlay() {
     svg.classList.add("keyboard-hand-svg");
     svg.setAttribute("focusable", "false");
     svg.setAttribute("overflow", "visible");
-    const shape = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    shape.classList.add("keyboard-hand-shape");
-    svg.append(shape);
+    ["palm", ...HAND_FINGERS[handSide], "thumb"].forEach((part) => {
+      const shape = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      shape.classList.add("keyboard-hand-shape");
+      shape.dataset.part = part;
+      svg.append(shape);
+    });
     hand.append(svg);
     overlay.append(hand);
   });
@@ -1694,9 +1697,14 @@ function renderFingerGuide(nextKey) {
     const layout = getHandLayout(handSide);
     if (!layout) return;
     const svg = hand.querySelector(".keyboard-hand-svg");
-    const shape = hand.querySelector(".keyboard-hand-shape");
+    const shapes = [...hand.querySelectorAll(".keyboard-hand-shape")];
+    const partPaths = buildHandPaths(handSide, activeFingerId, targetKeyEl, layout);
     svg.setAttribute("viewBox", `0 0 ${keyboardRect.width} ${keyboardRect.height}`);
-    shape.setAttribute("d", buildHandPath(handSide, activeFingerId, targetKeyEl, layout));
+    shapes.forEach((shape, index) => {
+      const path = partPaths[index] || "";
+      shape.setAttribute("d", path);
+      shape.classList.toggle("hidden", !path);
+    });
     hand.classList.remove("hit", "miss");
     hand.classList.toggle("active", isFingerOnHand(activeFingerId, handSide));
   });
@@ -1753,19 +1761,19 @@ function isFingerOnHand(fingerId, handSide) {
   return HAND_FINGERS[handSide].includes(fingerId);
 }
 
-function buildHandPath(handSide, activeFingerId, targetKeyEl, layout) {
+function buildHandPaths(handSide, activeFingerId, targetKeyEl, layout) {
   const fingerShapes = HAND_FINGERS[handSide]
     .map((fingerId) => getFingerShape(fingerId, fingerId === activeFingerId ? targetKeyEl : null, layout))
     .filter(Boolean)
     .sort((a, b) => a.baseX - b.baseX);
   const thumbShape = getThumbShape(handSide, activeFingerId === "thumb" ? targetKeyEl : null, layout);
-  if (!fingerShapes.length) return "";
+  if (!fingerShapes.length) return [];
 
   return [
     buildPalmBlobPath(layout),
     ...fingerShapes.map(segmentToRoundedPath),
     thumbShape ? segmentToRoundedPath(thumbShape) : ""
-  ].filter(Boolean).join(" ");
+  ].filter(Boolean);
 }
 
 function getFingerShape(fingerId, targetKeyEl, layout) {
@@ -1925,9 +1933,9 @@ function createTaperedSegmentShapeBetween(baseX, baseY, tipX, tipY, baseWidth, t
 
 function buildPalmBlobPath(layout) {
   const left = layout.palmLeft;
-  const top = layout.palmTop + layout.keyHeight * 0.44;
+  const top = layout.knuckleY - layout.keyHeight * 0.22;
   const width = layout.palmWidth;
-  const height = layout.palmHeight * 0.84;
+  const height = layout.palmHeight * 0.96;
   const right = left + width;
   const bottom = top + height;
   const rx = width * 0.22;
