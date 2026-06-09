@@ -421,14 +421,14 @@ const HAND_FINGERS = {
 };
 
 const FINGER_REACH_LIMITS = {
-  "left-pinky": { angle: 52, height: 3.05 },
-  "left-ring": { angle: 42, height: 2.7 },
-  "left-middle": { angle: 38, height: 2.55 },
-  "left-index": { angle: 46, height: 2.85 },
-  "right-index": { angle: 46, height: 2.85 },
-  "right-middle": { angle: 38, height: 2.55 },
-  "right-ring": { angle: 42, height: 2.7 },
-  "right-pinky": { angle: 52, height: 3.05 }
+  "left-pinky": { angle: 52, height: 3.05, minHeight: 1.42 },
+  "left-ring": { angle: 42, height: 2.7, minHeight: 1.62 },
+  "left-middle": { angle: 38, height: 2.55, minHeight: 1.82 },
+  "left-index": { angle: 46, height: 2.85, minHeight: 1.7 },
+  "right-index": { angle: 46, height: 2.85, minHeight: 1.7 },
+  "right-middle": { angle: 38, height: 2.55, minHeight: 1.82 },
+  "right-ring": { angle: 42, height: 2.7, minHeight: 1.62 },
+  "right-pinky": { angle: 52, height: 3.05, minHeight: 1.42 }
 };
 
 const KEYBOARD_LAYOUTS = {
@@ -1738,12 +1738,13 @@ function getHandLayout(handSide) {
   const minX = Math.min(...homeRects.map((rect) => rect.left));
   const maxX = Math.max(...homeRects.map((rect) => rect.right));
   const homeCenterY = homeRects.reduce((sum, rect) => sum + rect.centerY, 0) / homeRects.length;
-  const baseY = homeCenterY + keyHeight * 1.12;
-  const palmWidth = maxX - minX + keyHeight * 1.38;
-  const palmHeight = keyHeight * 1.5;
-  const palmLeft = minX - keyHeight * 0.65;
-  const palmTop = baseY - palmHeight * 0.34;
-  return { baseY, palmLeft, palmTop, palmWidth, palmHeight, keyHeight };
+  const baseY = homeCenterY + keyHeight * 1.18;
+  const palmWidth = maxX - minX + keyHeight * 2.45;
+  const palmHeight = keyHeight * 2.2;
+  const palmLeft = minX - keyHeight * 1.18;
+  const palmTop = baseY - keyHeight * 0.48;
+  const knuckleY = palmTop + keyHeight * 0.2;
+  return { baseY, knuckleY, palmLeft, palmTop, palmWidth, palmHeight, keyHeight };
 }
 
 function isFingerOnHand(fingerId, handSide) {
@@ -1763,60 +1764,65 @@ function buildHandPath(handSide, activeFingerId, targetKeyEl, layout) {
   const palmRight = layout.palmLeft + layout.palmWidth;
   const palmTop = layout.palmTop;
   const palmBottom = layout.palmTop + layout.palmHeight;
-  const radius = layout.keyHeight * 0.42;
+  const radius = layout.keyHeight * 0.9;
+  const shoulderY = palmTop + layout.keyHeight * 0.42;
   const first = fingerShapes[0];
   const last = fingerShapes[fingerShapes.length - 1];
-  const commands = [
-    `M ${palmLeft + radius} ${palmTop}`,
-    `Q ${palmLeft} ${palmTop} ${palmLeft} ${palmTop + radius}`,
-    `L ${palmLeft} ${palmBottom - radius}`,
-    `Q ${palmLeft} ${palmBottom} ${palmLeft + radius} ${palmBottom}`,
-    `L ${thumbShape?.innerBaseX || palmLeft + radius} ${thumbShape?.innerBaseY || palmBottom}`
-  ];
+  const commands = [`M ${palmLeft + radius} ${palmBottom}`];
 
   if (thumbShape && handSide === "right") {
     commands.push(
-      `L ${thumbShape.innerTipX} ${thumbShape.innerTipY}`,
-      `Q ${thumbShape.tipX} ${thumbShape.tipY} ${thumbShape.outerTipX} ${thumbShape.outerTipY}`,
-      `L ${thumbShape.outerBaseX} ${thumbShape.outerBaseY}`
+      `C ${palmLeft + layout.keyHeight * 0.18} ${palmBottom} ${thumbShape.leftBaseX} ${thumbShape.leftBaseY} ${thumbShape.leftBaseX} ${thumbShape.leftBaseY}`,
+      `L ${thumbShape.leftTipX} ${thumbShape.leftTipY}`,
+      `Q ${thumbShape.tipX} ${thumbShape.tipY} ${thumbShape.rightTipX} ${thumbShape.rightTipY}`,
+      `L ${thumbShape.rightBaseX} ${thumbShape.rightBaseY}`,
+      `C ${palmLeft - layout.keyHeight * 0.28} ${palmTop + layout.keyHeight * 1.35} ${palmLeft - layout.keyHeight * 0.18} ${shoulderY} ${palmLeft} ${shoulderY}`
     );
-  }
-
-  commands.push(
-    `L ${palmRight - radius} ${palmBottom}`,
-    `Q ${palmRight} ${palmBottom} ${palmRight} ${palmBottom - radius}`
-  );
-
-  if (thumbShape && handSide === "left") {
+  } else {
     commands.push(
-      `L ${thumbShape.outerBaseX} ${thumbShape.outerBaseY}`,
-      `L ${thumbShape.outerTipX} ${thumbShape.outerTipY}`,
-      `Q ${thumbShape.tipX} ${thumbShape.tipY} ${thumbShape.innerTipX} ${thumbShape.innerTipY}`,
-      `L ${thumbShape.innerBaseX} ${thumbShape.innerBaseY}`
+      `Q ${palmLeft} ${palmBottom} ${palmLeft} ${palmBottom - radius}`,
+      `L ${palmLeft} ${shoulderY}`
     );
   }
 
   commands.push(
-    `L ${palmRight} ${palmTop + radius}`,
-    `Q ${palmRight} ${palmTop} ${palmRight - radius} ${palmTop}`,
-    `L ${last.rightBaseX} ${last.rightBaseY}`
+    `C ${palmLeft + layout.keyHeight * 0.1} ${palmTop} ${first.leftBaseX - layout.keyHeight * 0.16} ${first.leftBaseY} ${first.leftBaseX} ${first.leftBaseY}`
   );
 
-  for (let index = fingerShapes.length - 1; index >= 0; index -= 1) {
+  for (let index = 0; index < fingerShapes.length; index += 1) {
     const finger = fingerShapes[index];
     commands.push(
-      `L ${finger.rightTipX} ${finger.rightTipY}`,
-      `Q ${finger.tipX} ${finger.tipY} ${finger.leftTipX} ${finger.leftTipY}`,
-      `L ${finger.leftBaseX} ${finger.leftBaseY}`
+      `L ${finger.leftTipX} ${finger.leftTipY}`,
+      `Q ${finger.tipX} ${finger.tipY} ${finger.rightTipX} ${finger.rightTipY}`,
+      `L ${finger.rightBaseX} ${finger.rightBaseY}`
     );
-    if (index > 0) {
-      const nextFinger = fingerShapes[index - 1];
-      commands.push(`Q ${(finger.leftBaseX + nextFinger.rightBaseX) / 2} ${layout.baseY - layout.keyHeight * 0.28} ${nextFinger.rightBaseX} ${nextFinger.rightBaseY}`);
+    if (index < fingerShapes.length - 1) {
+      const nextFinger = fingerShapes[index + 1];
+      commands.push(`Q ${(finger.rightBaseX + nextFinger.leftBaseX) / 2} ${layout.knuckleY - layout.keyHeight * 0.22} ${nextFinger.leftBaseX} ${nextFinger.leftBaseY}`);
     }
   }
 
   commands.push(
-    `L ${first.leftBaseX} ${first.leftBaseY}`,
+    `C ${last.rightBaseX + layout.keyHeight * 0.16} ${last.rightBaseY} ${palmRight - layout.keyHeight * 0.1} ${palmTop} ${palmRight} ${shoulderY}`
+  );
+
+  if (thumbShape && handSide === "left") {
+    commands.push(
+      `C ${palmRight + layout.keyHeight * 0.18} ${shoulderY} ${palmRight + layout.keyHeight * 0.28} ${palmTop + layout.keyHeight * 1.35} ${thumbShape.leftBaseX} ${thumbShape.leftBaseY}`,
+      `L ${thumbShape.leftTipX} ${thumbShape.leftTipY}`,
+      `Q ${thumbShape.tipX} ${thumbShape.tipY} ${thumbShape.rightTipX} ${thumbShape.rightTipY}`,
+      `L ${thumbShape.rightBaseX} ${thumbShape.rightBaseY}`,
+      `C ${thumbShape.rightBaseX} ${thumbShape.rightBaseY} ${palmRight - layout.keyHeight * 0.18} ${palmBottom} ${palmRight - radius} ${palmBottom}`
+    );
+  } else {
+    commands.push(
+      `L ${palmRight} ${palmBottom - radius}`,
+      `Q ${palmRight} ${palmBottom} ${palmRight - radius} ${palmBottom}`
+    );
+  }
+
+  commands.push(
+    `L ${palmLeft + radius} ${palmBottom}`,
     "Z"
   );
   return commands.join(" ");
@@ -1829,14 +1835,14 @@ function getFingerShape(fingerId, targetKeyEl, layout) {
   const targetRect = getKeyboardRelativeRect(targetKeyEl || homeKeyEl);
   const width = Math.max(24, Math.min(44, homeRect.width * 0.58));
   const baseX = homeRect.centerX;
-  const baseY = layout.baseY;
+  const baseY = layout.knuckleY;
   const targetX = targetRect.centerX;
   const targetY = targetRect.centerY + targetRect.height * 0.08;
   const dx = targetX - baseX;
   const dy = targetY - baseY;
   const distance = Math.hypot(dx, dy);
   const limits = FINGER_REACH_LIMITS[fingerId] || { angle: 42, height: 2.65 };
-  const minHeight = layout.keyHeight * 1.22;
+  const minHeight = layout.keyHeight * (limits.minHeight || 1.42);
   const maxHeight = layout.keyHeight * limits.height;
   const height = clamp(distance + layout.keyHeight * 0.28, minHeight, maxHeight);
   const rawAngle = Math.atan2(dx, -dy) * 180 / Math.PI;
@@ -1850,19 +1856,19 @@ function getThumbShape(handSide, targetKeyEl, layout) {
   if (!spaceKeyEl) return null;
   const spaceRect = getKeyboardRelativeRect(spaceKeyEl);
   const isLeft = handSide === "left";
-  const baseX = isLeft ? layout.palmLeft + layout.palmWidth * 0.72 : layout.palmLeft + layout.palmWidth * 0.28;
-  const baseY = layout.palmTop + layout.palmHeight * 0.62;
-  const targetOffset = targetKeyEl ? 0 : (isLeft ? -0.22 : 0.22);
+  const baseX = isLeft ? layout.palmLeft + layout.palmWidth * 0.88 : layout.palmLeft + layout.palmWidth * 0.12;
+  const baseY = layout.palmTop + layout.palmHeight * 0.58;
+  const targetOffset = targetKeyEl ? 0 : (isLeft ? -0.16 : 0.16);
   const targetX = spaceRect.centerX + spaceRect.width * targetOffset;
-  const targetY = spaceRect.centerY;
+  const targetY = spaceRect.centerY - layout.keyHeight * 0.18;
   const dx = targetX - baseX;
   const dy = targetY - baseY;
   const distance = Math.hypot(dx, dy);
-  const width = Math.max(26, Math.min(44, layout.keyHeight * 0.7));
-  const height = clamp(distance + layout.keyHeight * 0.18, layout.keyHeight * 1.05, layout.keyHeight * 2.25);
-  const rawAngle = Math.atan2(dx, -dy) * 180 / Math.PI;
-  const angle = clamp(rawAngle, -58, 58);
-  return createSegmentShape(baseX, baseY, width, height, angle);
+  const width = Math.max(24, Math.min(42, layout.keyHeight * 0.64));
+  const maxReach = layout.keyHeight * 1.7;
+  const reach = clamp(distance, layout.keyHeight * 0.92, maxReach);
+  const scale = distance ? reach / distance : 1;
+  return createSegmentShapeBetween(baseX, baseY, baseX + dx * scale, baseY + dy * scale, width);
 }
 
 function createSegmentShape(baseX, baseY, width, height, angle) {
@@ -1895,6 +1901,31 @@ function createSegmentShape(baseX, baseY, width, height, angle) {
     innerTipY: tipY - normalY * halfWidth,
     outerTipX: tipX + normalX * halfWidth,
     outerTipY: tipY + normalY * halfWidth
+  };
+}
+
+function createSegmentShapeBetween(baseX, baseY, tipX, tipY, width) {
+  const dx = tipX - baseX;
+  const dy = tipY - baseY;
+  const distance = Math.hypot(dx, dy) || 1;
+  const directionX = dx / distance;
+  const directionY = dy / distance;
+  const normalX = -directionY;
+  const normalY = directionX;
+  const halfWidth = width / 2;
+  return {
+    baseX,
+    baseY,
+    tipX,
+    tipY,
+    leftBaseX: baseX - normalX * halfWidth,
+    leftBaseY: baseY - normalY * halfWidth,
+    rightBaseX: baseX + normalX * halfWidth,
+    rightBaseY: baseY + normalY * halfWidth,
+    leftTipX: tipX - normalX * halfWidth,
+    leftTipY: tipY - normalY * halfWidth,
+    rightTipX: tipX + normalX * halfWidth,
+    rightTipY: tipY + normalY * halfWidth
   };
 }
 
