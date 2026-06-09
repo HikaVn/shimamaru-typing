@@ -701,6 +701,7 @@ function setupKeyboardFingerOverlay() {
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     svg.classList.add("keyboard-hand-svg");
     svg.setAttribute("focusable", "false");
+    svg.setAttribute("overflow", "visible");
     const shape = document.createElementNS("http://www.w3.org/2000/svg", "path");
     shape.classList.add("keyboard-hand-shape");
     svg.append(shape);
@@ -1737,13 +1738,13 @@ function getHandLayout(handSide) {
   const keyHeight = homeRects[0].height;
   const minX = Math.min(...homeRects.map((rect) => rect.left));
   const maxX = Math.max(...homeRects.map((rect) => rect.right));
-  const homeCenterY = homeRects.reduce((sum, rect) => sum + rect.centerY, 0) / homeRects.length;
-  const baseY = homeCenterY + keyHeight * 1.18;
+  const keyboardHeight = els.gameKeyboard.getBoundingClientRect().height;
+  const knuckleY = keyboardHeight - keyHeight * 0.22;
+  const baseY = knuckleY + keyHeight * 0.98;
   const palmWidth = maxX - minX + keyHeight * 2.45;
-  const palmHeight = keyHeight * 2.2;
+  const palmHeight = keyHeight * 2.25;
   const palmLeft = minX - keyHeight * 1.18;
-  const palmTop = baseY - keyHeight * 0.48;
-  const knuckleY = palmTop + keyHeight * 0.2;
+  const palmTop = knuckleY - keyHeight * 0.08;
   return { baseY, knuckleY, palmLeft, palmTop, palmWidth, palmHeight, keyHeight };
 }
 
@@ -1774,7 +1775,7 @@ function buildHandPath(handSide, activeFingerId, targetKeyEl, layout) {
     commands.push(
       `C ${palmLeft + layout.keyHeight * 0.18} ${palmBottom} ${thumbShape.leftBaseX} ${thumbShape.leftBaseY} ${thumbShape.leftBaseX} ${thumbShape.leftBaseY}`,
       `L ${thumbShape.leftTipX} ${thumbShape.leftTipY}`,
-      `Q ${thumbShape.tipX} ${thumbShape.tipY} ${thumbShape.rightTipX} ${thumbShape.rightTipY}`,
+      `C ${thumbShape.leftCapX} ${thumbShape.leftCapY} ${thumbShape.rightCapX} ${thumbShape.rightCapY} ${thumbShape.rightTipX} ${thumbShape.rightTipY}`,
       `L ${thumbShape.rightBaseX} ${thumbShape.rightBaseY}`,
       `C ${palmLeft - layout.keyHeight * 0.28} ${palmTop + layout.keyHeight * 1.35} ${palmLeft - layout.keyHeight * 0.18} ${shoulderY} ${palmLeft} ${shoulderY}`
     );
@@ -1793,12 +1794,12 @@ function buildHandPath(handSide, activeFingerId, targetKeyEl, layout) {
     const finger = fingerShapes[index];
     commands.push(
       `L ${finger.leftTipX} ${finger.leftTipY}`,
-      `Q ${finger.tipX} ${finger.tipY} ${finger.rightTipX} ${finger.rightTipY}`,
+      `C ${finger.leftCapX} ${finger.leftCapY} ${finger.rightCapX} ${finger.rightCapY} ${finger.rightTipX} ${finger.rightTipY}`,
       `L ${finger.rightBaseX} ${finger.rightBaseY}`
     );
     if (index < fingerShapes.length - 1) {
       const nextFinger = fingerShapes[index + 1];
-      commands.push(`Q ${(finger.rightBaseX + nextFinger.leftBaseX) / 2} ${layout.knuckleY - layout.keyHeight * 0.22} ${nextFinger.leftBaseX} ${nextFinger.leftBaseY}`);
+      commands.push(`Q ${(finger.rightBaseX + nextFinger.leftBaseX) / 2} ${layout.knuckleY - layout.keyHeight * 0.08} ${nextFinger.leftBaseX} ${nextFinger.leftBaseY}`);
     }
   }
 
@@ -1810,7 +1811,7 @@ function buildHandPath(handSide, activeFingerId, targetKeyEl, layout) {
     commands.push(
       `C ${palmRight + layout.keyHeight * 0.18} ${shoulderY} ${palmRight + layout.keyHeight * 0.28} ${palmTop + layout.keyHeight * 1.35} ${thumbShape.leftBaseX} ${thumbShape.leftBaseY}`,
       `L ${thumbShape.leftTipX} ${thumbShape.leftTipY}`,
-      `Q ${thumbShape.tipX} ${thumbShape.tipY} ${thumbShape.rightTipX} ${thumbShape.rightTipY}`,
+      `C ${thumbShape.leftCapX} ${thumbShape.leftCapY} ${thumbShape.rightCapX} ${thumbShape.rightCapY} ${thumbShape.rightTipX} ${thumbShape.rightTipY}`,
       `L ${thumbShape.rightBaseX} ${thumbShape.rightBaseY}`,
       `C ${thumbShape.rightBaseX} ${thumbShape.rightBaseY} ${palmRight - layout.keyHeight * 0.18} ${palmBottom} ${palmRight - radius} ${palmBottom}`
     );
@@ -1833,7 +1834,7 @@ function getFingerShape(fingerId, targetKeyEl, layout) {
   if (!homeKeyEl || !layout) return null;
   const homeRect = getKeyboardRelativeRect(homeKeyEl);
   const targetRect = getKeyboardRelativeRect(targetKeyEl || homeKeyEl);
-  const width = Math.max(24, Math.min(44, homeRect.width * 0.58));
+  const width = Math.max(30, Math.min(58, homeRect.width * 0.82));
   const baseX = homeRect.centerX;
   const baseY = layout.knuckleY;
   const targetX = targetRect.centerX;
@@ -1864,7 +1865,7 @@ function getThumbShape(handSide, targetKeyEl, layout) {
   const dx = targetX - baseX;
   const dy = targetY - baseY;
   const distance = Math.hypot(dx, dy);
-  const width = Math.max(24, Math.min(42, layout.keyHeight * 0.64));
+  const width = Math.max(28, Math.min(48, layout.keyHeight * 0.72));
   const maxReach = layout.keyHeight * 1.7;
   const reach = clamp(distance, layout.keyHeight * 0.92, maxReach);
   const scale = distance ? reach / distance : 1;
@@ -1880,6 +1881,7 @@ function createSegmentShape(baseX, baseY, width, height, angle) {
   const halfWidth = width / 2;
   const tipX = baseX + directionX * height;
   const tipY = baseY + directionY * height;
+  const capLift = width * 0.45;
   return {
     baseX,
     baseY,
@@ -1893,6 +1895,10 @@ function createSegmentShape(baseX, baseY, width, height, angle) {
     leftTipY: tipY - normalY * halfWidth,
     rightTipX: tipX + normalX * halfWidth,
     rightTipY: tipY + normalY * halfWidth,
+    leftCapX: tipX - normalX * halfWidth + directionX * capLift,
+    leftCapY: tipY - normalY * halfWidth + directionY * capLift,
+    rightCapX: tipX + normalX * halfWidth + directionX * capLift,
+    rightCapY: tipY + normalY * halfWidth + directionY * capLift,
     innerBaseX: baseX - normalX * halfWidth,
     innerBaseY: baseY - normalY * halfWidth,
     outerBaseX: baseX + normalX * halfWidth,
@@ -1913,6 +1919,7 @@ function createSegmentShapeBetween(baseX, baseY, tipX, tipY, width) {
   const normalX = -directionY;
   const normalY = directionX;
   const halfWidth = width / 2;
+  const capLift = width * 0.45;
   return {
     baseX,
     baseY,
@@ -1925,7 +1932,11 @@ function createSegmentShapeBetween(baseX, baseY, tipX, tipY, width) {
     leftTipX: tipX - normalX * halfWidth,
     leftTipY: tipY - normalY * halfWidth,
     rightTipX: tipX + normalX * halfWidth,
-    rightTipY: tipY + normalY * halfWidth
+    rightTipY: tipY + normalY * halfWidth,
+    leftCapX: tipX - normalX * halfWidth + directionX * capLift,
+    leftCapY: tipY - normalY * halfWidth + directionY * capLift,
+    rightCapX: tipX + normalX * halfWidth + directionX * capLift,
+    rightCapY: tipY + normalY * halfWidth + directionY * capLift
   };
 }
 
