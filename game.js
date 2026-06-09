@@ -432,14 +432,14 @@ const FINGER_REACH_LIMITS = {
 };
 
 const FINGER_REST_ANGLES = {
-  "left-pinky": 8,
-  "left-ring": 7,
-  "left-middle": 5,
-  "left-index": 11,
-  "right-index": -11,
-  "right-middle": -5,
-  "right-ring": -7,
-  "right-pinky": -8
+  "left-pinky": 20,
+  "left-ring": 18,
+  "left-middle": 17,
+  "left-index": 20,
+  "right-index": -20,
+  "right-middle": -17,
+  "right-ring": -18,
+  "right-pinky": -20
 };
 
 const KEYBOARD_LAYOUTS = {
@@ -1796,7 +1796,7 @@ function getFingerShape(fingerId, targetKeyEl, layout) {
   const targetRect = getKeyboardRelativeRect(targetKeyEl || homeKeyEl);
   const isPinky = fingerId.endsWith("pinky");
   const width = isPinky
-    ? Math.max(28, Math.min(48, homeRect.width * 0.72))
+    ? Math.max(24, Math.min(40, homeRect.width * 0.58))
     : Math.max(30, Math.min(58, homeRect.width * 0.82));
   const baseX = homeRect.centerX;
   const baseY = layout.knuckleY;
@@ -1823,19 +1823,19 @@ function getThumbShape(handSide, targetKeyEl, layout) {
   if (!spaceKeyEl) return null;
   const spaceRect = getKeyboardRelativeRect(spaceKeyEl);
   const isLeft = handSide === "left";
-  const baseX = isLeft ? layout.palmLeft + layout.palmWidth * 0.82 : layout.palmLeft + layout.palmWidth * 0.18;
-  const baseY = layout.palmTop + layout.palmHeight * 0.48;
+  const baseX = isLeft ? layout.palmLeft + layout.palmWidth * 0.58 : layout.palmLeft + layout.palmWidth * 0.42;
+  const baseY = layout.palmTop + layout.palmHeight * 0.78;
   const targetX = targetKeyEl
     ? spaceRect.centerX + spaceRect.width * (isLeft ? -0.18 : 0.18)
-    : baseX + layout.keyHeight * (isLeft ? 0.96 : -0.96);
+    : baseX + layout.keyHeight * (isLeft ? 0.58 : -0.58);
   const targetY = targetKeyEl
     ? spaceRect.centerY + layout.keyHeight * 0.04
-    : baseY + layout.keyHeight * 0.28;
+    : baseY - layout.keyHeight * 0.58;
   const dx = targetX - baseX;
   const dy = targetY - baseY;
   const distance = Math.hypot(dx, dy);
-  const baseWidth = Math.max(40, Math.min(68, layout.keyHeight * 1.04));
-  const tipWidth = Math.max(28, Math.min(50, layout.keyHeight * 0.76));
+  const baseWidth = Math.max(38, Math.min(62, layout.keyHeight * 0.96));
+  const tipWidth = Math.max(26, Math.min(44, layout.keyHeight * 0.68));
   if (targetKeyEl) {
     return createTaperedSegmentShapeBetween(baseX, baseY, targetX, targetY, baseWidth, tipWidth);
   }
