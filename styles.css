@@ -449,6 +449,96 @@ button {
   line-height: 1.2;
 }
 
+.codori-link {
+  position: relative;
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr) 34px;
+  align-items: center;
+  gap: 12px;
+  width: min(100%, 520px);
+  min-height: 72px;
+  padding: 12px 14px;
+  border: 2px solid rgba(217, 75, 82, 0.18);
+  border-radius: 8px;
+  color: var(--ink);
+  text-decoration: none;
+  background:
+    linear-gradient(135deg, rgba(255, 247, 237, 0.95), rgba(255, 255, 255, 0.84)),
+    radial-gradient(circle at 14% 18%, rgba(244, 179, 93, 0.24), transparent 30%);
+  box-shadow: 0 14px 28px var(--shadow);
+  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.codori-link::after {
+  position: absolute;
+  right: 50px;
+  top: 12px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--sun);
+  box-shadow:
+    13px 11px 0 rgba(217, 75, 82, 0.42),
+    -15px 26px 0 rgba(142, 198, 214, 0.5);
+  content: "";
+  pointer-events: none;
+}
+
+.codori-link:hover,
+.codori-link:focus-visible {
+  border-color: rgba(217, 75, 82, 0.44);
+  box-shadow: 0 18px 34px rgba(31, 53, 61, 0.22);
+  transform: translateY(-2px);
+}
+
+.codori-link:focus-visible {
+  outline: 3px solid rgba(47, 95, 93, 0.28);
+  outline-offset: 3px;
+}
+
+.codori-link-icon {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border: 2px solid rgba(47, 95, 93, 0.1);
+  border-radius: 50%;
+  color: var(--berry);
+  background: #fff;
+  font-size: 1.4rem;
+  font-weight: 900;
+  box-shadow: 0 8px 16px rgba(31, 53, 61, 0.1);
+}
+
+.codori-link-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.codori-link-copy span {
+  color: var(--berry);
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.codori-link-copy strong {
+  overflow-wrap: anywhere;
+  font-size: 1.04rem;
+  line-height: 1.25;
+}
+
+.codori-link-arrow {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  color: #fff;
+  background: var(--pine);
+  font-weight: 900;
+}
+
 .primary,
 .secondary,
 .difficulty button {

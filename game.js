@@ -656,6 +656,10 @@ const reminderStoreKey = "shimaenagaTypingReminder";
 const keyStatsStoreKey = "shimaenagaTypingKeyStats";
 const wpmTrendModeStoreKey = "shimaenagaTypingWpmTrendMode";
 const keyboardLayoutStoreKey = "shimaenagaTypingKeyboardLayout";
+const bgmSettingsStoreKey = "shimaenagaTypingBgmSettings";
+const bgmDbName = "shimaenagaTypingBgmLibrary";
+const bgmDbVersion = 1;
+const bgmStoreName = "tracks";
 
 let WEEKLY_PLAN = [
   { day: "日", title: "ストーリーさんぽ", mode: "story", goal: "1ステージ", note: "物語を進める日" },
@@ -1318,17 +1322,208 @@ function notifyPracticeReminder() {
   els.practiceLog.innerHTML = `<span>${body}</span>${els.practiceLog.innerHTML}`;
 }
 
-function addBgmFiles(files) {
-  const audioFiles = [...files].filter((file) => file.type.startsWith("audio/"));
+function openBgmDb() {
+  return new Promise((resolve, reject) => {
+    if (!("indexedDB" in window)) {
+      reject(new Error("IndexedDB is not available."));
+      return;
+    }
+
+    const request = indexedDB.open(bgmDbName, bgmDbVersion);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(bgmStoreName)) {
+        db.createObjectStore(bgmStoreName, { keyPath: "id" });
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error || new Error("BGM database open failed."));
+  });
+}
+
+function runBgmStore(mode, action) {
+  return openBgmDb().then((db) => new Promise((resolve, reject) => {
+    const transaction = db.transaction(bgmStoreName, mode);
+    const store = transaction.objectStore(bgmStoreName);
+    let request;
+    let result;
+
+    try {
+      request = action(store);
+    } catch (error) {
+      db.close();
+      reject(error);
+      return;
+    }
+
+    request.onsuccess = () => {
+      result = request.result;
+    };
+    request.onerror = () => {
+      db.close();
+      reject(request.error || new Error("BGM database request failed."));
+    };
+    transaction.oncomplete = () => {
+      db.close();
+      resolve(result);
+    };
+    transaction.onerror = () => {
+      db.close();
+      reject(transaction.error || new Error("BGM database transaction failed."));
+    };
+  }));
+}
+
+function saveBgmRecord(record) {
+  return runBgmStore("readwrite", (store) => store.put(record));
+}
+
+function loadBgmRecords() {
+  return runBgmStore("readonly", (store) => store.getAll());
+}
+
+function deleteBgmRecord(id) {
+  if (!id) return Promise.resolve();
+  return runBgmStore("readwrite", (store) => store.delete(id));
+}
+
+function clearBgmRecords() {
+  return runBgmStore("readwrite", (store) => store.clear());
+}
+
+function loadBgmSettings() {
+  try {
+    const settings = JSON.parse(localStorage.getItem(bgmSettingsStoreKey)) || {};
+    return {
+      trackIds: Array.isArray(settings.trackIds) ? settings.trackIds : [],
+      index: Number.isInteger(settings.index) ? settings.index : -1,
+      loopMode: ["one", "all", "shuffle"].includes(settings.loopMode) ? settings.loopMode : "all",
+      volume: Number.isFinite(settings.volume) ? clamp(settings.volume, 0, 1) : 0.35
+    };
+  } catch {
+    return { trackIds: [], index: -1, loopMode: "all", volume: 0.35 };
+  }
+}
+
+function saveBgmSettings() {
+  const settings = {
+    trackIds: bgmTracks.map((track) => track.id).filter(Boolean),
+    index: bgmIndex,
+    loopMode: bgmLoopMode,
+    volume: bgmAudio.volume
+  };
+  localStorage.setItem(bgmSettingsStoreKey, JSON.stringify(settings));
+}
+
+function createBgmTrackId() {
+  if ("crypto" in window && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `bgm-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function isAudioFile(file) {
+  if (file.type.startsWith("audio/")) return true;
+  return /\.(aac|aif|aiff|flac|m4a|mp3|ogg|opus|wav|weba|webm)$/i.test(file.name);
+}
+
+function revokeBgmTrackUrl(track) {
+  if (track?.url) URL.revokeObjectURL(track.url);
+}
+
+async function restoreBgmTracks() {
+  const settings = loadBgmSettings();
+  bgmLoopMode = settings.loopMode;
+  bgmAudio.loop = bgmLoopMode === "one";
+  bgmAudio.volume = settings.volume;
+  els.bgmVolume.value = String(settings.volume);
+
+  if (!settings.trackIds.length) {
+    renderBgm();
+    return;
+  }
+
+  try {
+    els.bgmStatus.textContent = "保存リストを読み込み中";
+    const records = await loadBgmRecords();
+    const recordMap = new Map(records.map((record) => [record.id, record]));
+    const orderedRecords = settings.trackIds
+      .map((id) => recordMap.get(id))
+      .filter(Boolean);
+
+    if (!orderedRecords.length) {
+      bgmTracks = [];
+      bgmIndex = -1;
+      saveBgmSettings();
+      renderBgm();
+      return;
+    }
+
+    bgmTracks.forEach(revokeBgmTrackUrl);
+    bgmTracks = orderedRecords.map((record) => ({
+      id: record.id,
+      name: record.name,
+      type: record.type,
+      size: record.size,
+      lastModified: record.lastModified,
+      url: URL.createObjectURL(record.blob)
+    }));
+    bgmIndex = settings.index >= 0 && settings.index < bgmTracks.length ? settings.index : 0;
+    bgmAudio.src = bgmTracks[bgmIndex].url;
+    bgmShuffleQueue = bgmLoopMode === "shuffle" ? buildBgmShuffleQueue() : [];
+  } catch (error) {
+    console.warn("BGM restore failed:", error);
+    bgmTracks = [];
+    bgmIndex = -1;
+    els.bgmStatus.textContent = "保存リストを読み込めません";
+  }
+
+  renderBgm();
+}
+
+async function addBgmFiles(files) {
+  const audioFiles = [...files].filter(isAudioFile);
   if (!audioFiles.length) {
     renderBgm();
     return;
   }
 
-  const newTracks = audioFiles.map((file) => ({
-    name: file.name,
-    url: URL.createObjectURL(file)
-  }));
+  els.bgmStatus.textContent = "保存中";
+  const newTracks = [];
+
+  for (const file of audioFiles) {
+    const record = {
+      id: createBgmTrackId(),
+      name: file.name,
+      type: file.type || "audio/*",
+      size: file.size,
+      lastModified: file.lastModified || 0,
+      blob: file
+    };
+
+    try {
+      await saveBgmRecord(record);
+      newTracks.push({
+        id: record.id,
+        name: record.name,
+        type: record.type,
+        size: record.size,
+        lastModified: record.lastModified,
+        url: URL.createObjectURL(file)
+      });
+    } catch (error) {
+      console.warn("BGM save failed:", error);
+      newTracks.push({
+        id: "",
+        name: `${file.name}（今回のみ）`,
+        type: record.type,
+        size: record.size,
+        lastModified: record.lastModified,
+        url: URL.createObjectURL(file)
+      });
+    }
+  }
+
   const firstNewIndex = bgmTracks.length;
   bgmTracks = [...bgmTracks, ...newTracks];
   if (bgmLoopMode === "shuffle") {
@@ -1338,6 +1533,7 @@ function addBgmFiles(files) {
   if (bgmIndex === -1) {
     selectBgmTrack(0, false);
   }
+  saveBgmSettings();
   renderBgm();
 }
 
@@ -1349,6 +1545,7 @@ function selectBgmTrack(index, shouldPlay = !bgmAudio.paused) {
   if (shouldPlay) {
     playBgm();
   }
+  saveBgmSettings();
   renderBgm();
 }
 
@@ -1358,6 +1555,7 @@ function setBgmLoopMode(mode) {
   if (bgmLoopMode === "shuffle") {
     bgmShuffleQueue = buildBgmShuffleQueue();
   }
+  saveBgmSettings();
   renderBgm();
 }
 
@@ -1390,18 +1588,21 @@ function playNextShuffledBgm() {
   selectBgmTrack(Number.isInteger(nextIndex) ? nextIndex : 0, true);
 }
 
-function removeBgmTrack(index) {
+async function removeBgmTrack(index) {
   if (index < 0 || index >= bgmTracks.length) return;
   const wasPlaying = !bgmAudio.paused;
   const wasCurrent = index === bgmIndex;
-  URL.revokeObjectURL(bgmTracks[index].url);
+  const removedTrack = bgmTracks[index];
+  revokeBgmTrackUrl(removedTrack);
   bgmTracks.splice(index, 1);
+  deleteBgmRecord(removedTrack.id).catch((error) => console.warn("BGM delete failed:", error));
 
   if (!bgmTracks.length) {
     bgmAudio.pause();
     bgmAudio.removeAttribute("src");
     bgmIndex = -1;
     bgmShuffleQueue = [];
+    saveBgmSettings();
     renderBgm();
     return;
   }
@@ -1419,16 +1620,19 @@ function removeBgmTrack(index) {
     return;
   }
 
+  saveBgmSettings();
   renderBgm();
 }
 
-function clearBgmTracks() {
-  bgmTracks.forEach((track) => URL.revokeObjectURL(track.url));
+async function clearBgmTracks() {
+  bgmTracks.forEach(revokeBgmTrackUrl);
   bgmTracks = [];
   bgmIndex = -1;
   bgmShuffleQueue = [];
   bgmAudio.pause();
   bgmAudio.removeAttribute("src");
+  clearBgmRecords().catch((error) => console.warn("BGM clear failed:", error));
+  saveBgmSettings();
   renderBgm();
 }
 
@@ -1451,6 +1655,7 @@ function pauseBgm() {
 function stopBgm() {
   bgmAudio.pause();
   bgmAudio.currentTime = 0;
+  saveBgmSettings();
   renderBgm();
 }
 
@@ -2433,6 +2638,7 @@ els.miniBgmLoop.addEventListener("click", toggleBgmLoopMode);
 els.bgmClearAll.addEventListener("click", clearBgmTracks);
 els.bgmVolume.addEventListener("input", () => {
   bgmAudio.volume = Number(els.bgmVolume.value);
+  saveBgmSettings();
 });
 bgmAudio.addEventListener("play", renderBgm);
 bgmAudio.addEventListener("pause", renderBgm);
@@ -2458,6 +2664,7 @@ renderRecords();
 renderSchedule();
 renderReminder();
 renderBgm();
+restoreBgmTracks();
 startReminderWatcher();
 showKeyboardSetupIfNeeded();
 loadContentData().then(() => {
