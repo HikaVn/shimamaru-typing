@@ -1976,18 +1976,9 @@ function getHandLayout(handSide) {
     .map(getKeyboardRelativeRect);
   if (!homeRects.length) return null;
   const keyHeight = homeRects[0].height;
-  const minX = Math.min(...homeRects.map((rect) => rect.left));
-  const maxX = Math.max(...homeRects.map((rect) => rect.right));
   const keyboardHeight = els.gameKeyboard.getBoundingClientRect().height;
   const knuckleY = keyboardHeight - keyHeight * 0.22;
-  const baseY = knuckleY + keyHeight * 0.98;
-  const outerPalmPad = keyHeight * 1.05;
-  const innerPalmPad = keyHeight * 0.08;
-  const palmWidth = maxX - minX + outerPalmPad + innerPalmPad;
-  const palmHeight = keyHeight * 2.25;
-  const palmLeft = handSide === "left" ? minX - outerPalmPad : minX - innerPalmPad;
-  const palmTop = knuckleY - keyHeight * 0.08;
-  return { baseY, knuckleY, palmLeft, palmTop, palmWidth, palmHeight, keyHeight };
+  return { knuckleY, keyHeight };
 }
 
 function isFingerOnHand(fingerId, handSide) {
@@ -2041,20 +2032,16 @@ function getThumbShape(handSide, targetKeyEl, layout) {
   const spaceKeyEl = targetKeyEl || getHomeKeyElement("thumb");
   if (!spaceKeyEl) return null;
   const spaceRect = getKeyboardRelativeRect(spaceKeyEl);
-  const isLeft = handSide === "left";
-  const thumbInwardShift = layout.keyHeight * 0.82 * (isLeft ? 1 : -1);
-  const baseX = layout.palmLeft + layout.palmWidth * 0.5 + thumbInwardShift;
-  const baseY = layout.palmTop + layout.palmHeight * 1.02;
-  const targetX = spaceRect.centerX + spaceRect.width * (isLeft ? -0.18 : 0.18) + thumbInwardShift;
+  const inward = handSide === "left" ? 1 : -1; // 中央へ向かう向き
   const baseWidth = Math.max(38, Math.min(62, layout.keyHeight * 0.96));
   const tipWidth = Math.max(26, Math.min(44, layout.keyHeight * 0.68));
-  // スペース打鍵時はスペースキーへ伸ばす。
-  if (targetKeyEl) {
-    const targetY = spaceRect.centerY + layout.keyHeight * 0.04;
-    return createTaperedSegmentShapeBetween(baseX, baseY, targetX, targetY, baseWidth, tipWidth);
-  }
-  // ホームポジション(休憩時)は、親指の先端の高さを人差し指の付け根(knuckleY)に揃える。
-  return createTaperedSegmentShapeBetween(baseX, baseY, targetX, layout.knuckleY, baseWidth, tipWidth);
+  // 付け根は手のひら内側・やや下（人差し指の付け根あたりの真下）に置く。
+  const baseX = spaceRect.centerX - inward * (spaceRect.width * 0.5 + layout.keyHeight * 0.85);
+  const baseY = layout.knuckleY + layout.keyHeight * 1.05;
+  // 先端は左右の親指を離してスペースバー上に休ませる。打鍵時はわずかに押し込む。
+  const tipX = spaceRect.centerX - inward * spaceRect.width * 0.18;
+  const tipY = spaceRect.centerY + layout.keyHeight * (targetKeyEl ? 0.08 : 0.02);
+  return createTaperedSegmentShapeBetween(baseX, baseY, tipX, tipY, baseWidth, tipWidth);
 }
 
 function createSegmentShapeBetween(baseX, baseY, tipX, tipY, width) {
