@@ -1841,10 +1841,15 @@ button {
 }
 
 .keyboard {
+  /* JIS コンパクト配列を単一グリッドで描く。1u = 4 列（計 64 列 = 16u）。
+     キーは個別に grid-area で配置（index.html のインラインスタイル）。
+     行1 はファンクション行で低め、行2-6 は通常段。 */
   display: grid;
+  grid-template-columns: repeat(64, minmax(0, 1fr));
+  grid-template-rows: clamp(24px, 3.2vw, 38px) repeat(5, clamp(34px, 5.2vw, 57px));
   align-content: center;
-  gap: 8px;
-  min-height: 430px;
+  justify-content: center;
+  gap: 6px;
   padding: 22px;
 }
 
@@ -1860,19 +1865,15 @@ button {
 }
 
 .game-keyboard .key {
-  min-height: 38px;
-  font-size: 0.95rem;
+  font-size: clamp(0.7rem, 1.3vw, 1rem);
 }
 
-.game-keyboard .small-key {
-  min-height: 32px;
-}
-
-.game-keyboard .wide-key,
-.game-keyboard .wider-key,
-.game-keyboard .widest-key,
-.game-keyboard .space-key {
-  font-size: 0.72rem;
+.game-keyboard .kb-fn,
+.game-keyboard .kb-jp,
+.game-keyboard .kb-enter,
+.game-keyboard .kb-arrow,
+.game-keyboard .kb-space {
+  font-size: clamp(0.5rem, 0.95vw, 0.74rem);
 }
 
 .keyboard-hand-overlay {
@@ -1946,48 +1947,39 @@ button {
   line-height: 1;
 }
 
-.keyboard-row {
-  display: grid;
-  grid-template-columns: repeat(30, minmax(0, 1fr));
-  gap: 6px;
-}
-
-.number-row {
-  padding-left: 2%;
-  padding-right: 2%;
-}
-
-.top-row {
-  padding-left: 4%;
-}
-
-.home-row {
-  padding-left: 7%;
-}
-
-.bottom-row {
-  padding-left: 10%;
-}
-
-.space-row {
-  padding-left: 18%;
-  padding-right: 18%;
-}
-
 .key {
+  /* 1u キー（英字・数字・記号）は実機どおり「セル内で中央寄せの正円」。
+     列ピッチ > 行ピッチ（実機 ≒ 88:81）なので横方向に隙間が出る。 */
   display: grid;
   place-items: center;
   align-content: center;
-  grid-column: span 2;
-  min-height: 62px;
+  box-sizing: border-box;
+  aspect-ratio: 1;
+  height: 100%;
+  justify-self: center;
+  min-height: 0;
+  padding: 2px;
   border: 2px solid rgba(38, 50, 56, 0.12);
-  border-radius: 8px;
+  border-radius: 50%;
   background: white;
   color: var(--ink);
-  font-size: clamp(1rem, 2vw, 1.5rem);
+  font-size: clamp(0.66rem, 1.3vw, 1rem);
   font-weight: 900;
-  box-shadow: 0 10px 20px rgba(31, 53, 61, 0.1);
+  box-shadow: 0 6px 12px rgba(31, 53, 61, 0.1);
   transition: transform 120ms ease, border-color 120ms ease, background 120ms ease;
+  overflow: hidden;
+}
+
+/* 横長キー（修飾・スペース・Enter・ファンクション/メディア・矢印）はピル形でセル全体を使う。 */
+.kb-fn,
+.kb-enter,
+.kb-space,
+.kb-arrow {
+  aspect-ratio: auto;
+  width: 100%;
+  height: 100%;
+  justify-self: stretch;
+  border-radius: 999px;
 }
 
 .key-main,
@@ -2002,28 +1994,41 @@ button {
   font-size: 0.62em;
 }
 
-.small-key {
-  min-height: 46px;
+/* 装飾キー（修飾キー・かな専用キー・矢印・Enter）。打鍵対象ではないので控えめに。 */
+.kb-fn,
+.kb-arrow,
+.kb-enter {
+  background: rgba(236, 240, 242, 0.96);
+  color: var(--muted);
+  font-size: clamp(0.52rem, 1vw, 0.8rem);
+  font-weight: 800;
 }
 
-.wide-key {
-  grid-column: span 3;
-  font-size: 0.86rem;
+.kb-jp {
+  color: var(--muted);
+  font-size: clamp(0.6rem, 1.2vw, 0.92rem);
 }
 
-.wider-key {
-  grid-column: span 4;
-  font-size: 0.86rem;
+.kb-space {
+  color: var(--muted);
+  font-size: clamp(0.55rem, 1vw, 0.8rem);
 }
 
-.widest-key {
-  grid-column: span 5;
-  font-size: 0.86rem;
+.kb-arrow {
+  font-size: clamp(0.6rem, 1.3vw, 0.95rem);
+  font-weight: 900;
 }
 
-.space-key {
-  grid-column: span 12;
-  font-size: 0.86rem;
+/* ファンクション行のメディア/デバイスキー: アイコンを少し大きく、F番号は控えめに。 */
+.kb-fnmedia .key-main {
+  font-size: 1.2em;
+  line-height: 1;
+}
+
+.kb-fnmedia .key-sub {
+  margin-top: 1px;
+  font-size: 0.46rem;
+  opacity: 0.65;
 }
 
 .key.home-key {
@@ -2162,24 +2167,14 @@ button {
   }
 
   .keyboard {
-    min-height: 300px;
-    padding: 12px;
-    gap: 6px;
-  }
-
-  .keyboard-row,
-  .keyboard-row.home-row,
-  .number-row,
-  .top-row,
-  .bottom-row,
-  .space-row {
+    grid-template-rows: clamp(18px, 4vw, 28px) repeat(5, clamp(30px, 7vw, 46px));
+    padding: 10px;
     gap: 4px;
-    padding-left: 0;
-    padding-right: 0;
   }
 
   .key {
-    min-height: 42px;
+    font-size: clamp(0.55rem, 2.2vw, 0.85rem);
+    border-width: 1.5px;
   }
 
   .hud {

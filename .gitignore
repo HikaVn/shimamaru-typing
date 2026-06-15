@@ -1,2 +1,8 @@
 .DS_Store
 .vscode/
+
+# 生成物（scripts/ で再生成できる中間ファイル・プレビュー）
+keyboard-jis.png
+keyboard-jis-snippet.html
+keyboard-preview.html
+keyboard-compare.*
