@@ -1846,7 +1846,7 @@ button {
      行1 はファンクション行で低め、行2-6 は通常段。 */
   display: grid;
   grid-template-columns: repeat(64, minmax(0, 1fr));
-  grid-template-rows: clamp(24px, 3vw, 34px) repeat(5, clamp(40px, 5vw, 56px));
+  grid-template-rows: clamp(26px, 3.6vw, 42px) repeat(5, clamp(34px, 5.7vw, 62px));
   align-content: center;
   justify-content: center;
   gap: 6px;
@@ -1999,6 +1999,18 @@ button {
 .kb-arrow {
   font-size: clamp(0.6rem, 1.3vw, 0.95rem);
   font-weight: 900;
+}
+
+/* ファンクション行のメディア/デバイスキー: アイコンを少し大きく、F番号は控えめに。 */
+.kb-fnmedia .key-main {
+  font-size: 1.2em;
+  line-height: 1;
+}
+
+.kb-fnmedia .key-sub {
+  margin-top: 1px;
+  font-size: 0.46rem;
+  opacity: 0.65;
 }
 
 .key.home-key {

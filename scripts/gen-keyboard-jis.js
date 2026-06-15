@@ -29,11 +29,12 @@ const L = (ch) => ({ w:4, code: ch, label: ch.toUpperCase(), sub: kana[ch] });
 
 const rows = [];
 
-// 行1: ファンクション行（装飾）
+// 行1: ファンクション行（装飾）。K380 風にデバイス切替(①②③)＋メディアアイコンを併記（近似）。
+const fnIcons = ["①","②","③","🔆","🔍","😊","📷","⏮","⏯","⏭","🔉","🔇"]; // F1..F12
 rows.push(layoutRow(1, [
   { w:6, label:"esc", cls:"kb-fn", deco:true },
-  ...Array.from({length:12}, (_,i)=>({ w:4, label:`F${i+1}`, cls:"kb-fn", deco:true })),
-  { w:6, label:"del", cls:"kb-fn", deco:true },
+  ...fnIcons.map((ic, i) => ({ w:4, label: ic, sub: `F${i+1}`, cls:"kb-fn kb-fnmedia", deco:true })),
+  { w:6, label:"🔒", sub:"del", cls:"kb-fn", deco:true },
 ]));
 
 // 行2: 数字行
