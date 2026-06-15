@@ -2037,12 +2037,8 @@ function getThumbShape(handSide, targetKeyEl, layout) {
   const inward = handSide === "left" ? 1 : -1; // 中央へ向かう向き
   const baseWidth = Math.max(38, Math.min(62, layout.keyHeight * 0.96));
   const tipWidth = Math.max(26, Math.min(44, layout.keyHeight * 0.68));
-  // 先端は人差し指の真下より「ちょい内側」。スペースバー上に乗るようクランプ。
-  const margin = layout.keyHeight * 0.2;
-  let tipX = indexRect.centerX + inward * layout.keyHeight * 0.55;
-  tipX = handSide === "left"
-    ? Math.max(spaceRect.left + margin, tipX)
-    : Math.min(spaceRect.right - margin, tipX);
+  // 先端は人差し指の真下より「ちょい内側」。左右の手の中心で左右対称になる。
+  const tipX = indexRect.centerX + inward * layout.keyHeight * 0.55;
   // 角度は他の4指(30°)より少し垂直(24°)。付け根は手のひら内側・やや下に置く。
   const restTipY = spaceRect.centerY + layout.keyHeight * 0.02;
   const tipY = restTipY + (targetKeyEl ? layout.keyHeight * 0.06 : 0); // 打鍵時はわずかに押し込む

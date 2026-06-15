@@ -150,7 +150,15 @@ function thumbNatural(handSide, layout, spaceRect, isLeft, baseWidth, tipWidth) 
   return createTaperedSegmentShapeBetween(baseX, baseY, tipX, tipY, baseWidth, tipWidth);
 }
 
-const VARIANTS = { current: thumbCurrent, natural: thumbNatural, idx: thumbIdx, sym: thumbSym };
+const VARIANTS = { current: thumbCurrent, natural: thumbNatural, idx: thumbIdx, sym: thumbSym, idxsym: thumbIdxSym };
+
+// idxsym: 人差し指基準・クランプ無し（左右の手の中心で対称になる）
+function thumbIdxSym(handSide, layout, spaceRect, isLeft, baseWidth, tipWidth) {
+  const inward = isLeft ? 1 : -1;
+  const indexRect = keyRect(isLeft ? "f" : "j");
+  const tipX = indexRect.centerX + inward * layout.keyHeight * 0.55;
+  return thumbFromAngle(layout, spaceRect, inward, tipX, 24);
+}
 
 // 親指を「人差し指の真下よりちょい内側」「４指より少し垂直」に。
 // idx: 人差し指Xを基準に内寄せ（スペースバー上にクランプ）
