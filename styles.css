@@ -1948,43 +1948,29 @@ button {
 
 .keyboard-row {
   display: grid;
-  grid-template-columns: repeat(30, minmax(0, 1fr));
+  grid-template-columns: repeat(60, minmax(0, 1fr));
   gap: 6px;
 }
 
-/* 段ずれは左右パディングの合計を 10% で固定して作る。
-   合計を揃えることで全行のグリッド実効幅＝キー幅が一致し、
-   行ごとにキーが縮んで列が扇状に歪む（斜めに見える）のを防ぐ。 */
-.number-row {
-  padding-left: 2%;
-  padding-right: 8%;
-}
-
-.top-row {
-  padding-left: 4%;
-  padding-right: 6%;
-}
-
-.home-row {
-  padding-left: 7%;
-  padding-right: 3%;
-}
-
-.bottom-row {
-  padding-left: 10%;
-  padding-right: 0;
-}
-
+/* 段ずれ（ロウスタッガー）は先頭キーの実寸幅だけで作る。
+   1u = 4 列（計 60 列）とし、Tab=1.5u / Caps=1.75u / Shift=2.25u にすると、
+   行間の横ずれが実機の ANSI 配列どおり 0.5u / 0.25u / 0.5u になる。
+   各行は左揃え（padding 0）にして、余計な段ずれを上乗せしない。
+   全行のキー幅も同一なので扇状の歪みも出ない。 */
+.number-row,
+.top-row,
+.home-row,
+.bottom-row,
 .space-row {
-  padding-left: 18%;
-  padding-right: 18%;
+  padding-left: 0;
+  padding-right: 0;
 }
 
 .key {
   display: grid;
   place-items: center;
   align-content: center;
-  grid-column: span 2;
+  grid-column: span 4;
   min-height: 62px;
   border: 2px solid rgba(38, 50, 56, 0.12);
   border-radius: 8px;
@@ -2013,22 +1999,26 @@ button {
 }
 
 .wide-key {
-  grid-column: span 3;
+  /* 1.5u (Tab / Ctrl / Alt) */
+  grid-column: span 6;
   font-size: 0.86rem;
 }
 
 .wider-key {
-  grid-column: span 4;
+  /* 1.75u (Caps) */
+  grid-column: span 7;
   font-size: 0.86rem;
 }
 
 .widest-key {
-  grid-column: span 5;
+  /* 2.25u (Shift) */
+  grid-column: span 9;
   font-size: 0.86rem;
 }
 
 .space-key {
-  grid-column: span 12;
+  /* 下段を 60 列いっぱいに埋める（6+6+36+6+6） */
+  grid-column: span 36;
   font-size: 0.86rem;
 }
 
