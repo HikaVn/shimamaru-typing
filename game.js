@@ -2046,19 +2046,15 @@ function getThumbShape(handSide, targetKeyEl, layout) {
   const baseX = layout.palmLeft + layout.palmWidth * 0.5 + thumbInwardShift;
   const baseY = layout.palmTop + layout.palmHeight * 1.02;
   const targetX = spaceRect.centerX + spaceRect.width * (isLeft ? -0.18 : 0.18) + thumbInwardShift;
-  const targetY = spaceRect.centerY + layout.keyHeight * 0.04;
-  const dx = targetX - baseX;
-  const dy = targetY - baseY;
-  const distance = Math.hypot(dx, dy);
   const baseWidth = Math.max(38, Math.min(62, layout.keyHeight * 0.96));
   const tipWidth = Math.max(26, Math.min(44, layout.keyHeight * 0.68));
+  // スペース打鍵時はスペースキーへ伸ばす。
   if (targetKeyEl) {
+    const targetY = spaceRect.centerY + layout.keyHeight * 0.04;
     return createTaperedSegmentShapeBetween(baseX, baseY, targetX, targetY, baseWidth, tipWidth);
   }
-  const maxReach = layout.keyHeight * 1.25;
-  const reach = clamp(distance, layout.keyHeight * 0.78, maxReach);
-  const scale = distance ? reach / distance : 1;
-  return createTaperedSegmentShapeBetween(baseX, baseY, baseX + dx * scale, baseY + dy * scale, baseWidth, tipWidth);
+  // ホームポジション(休憩時)は、親指の先端の高さを人差し指の付け根(knuckleY)に揃える。
+  return createTaperedSegmentShapeBetween(baseX, baseY, targetX, layout.knuckleY, baseWidth, tipWidth);
 }
 
 function createSegmentShapeBetween(baseX, baseY, tipX, tipY, width) {
