@@ -63,7 +63,27 @@ try {
   assert(s.plays === 1, "終了は1回だけ確定 (plays=" + s.plays + ")");
   assert(s.totalXp > 0 && s.source.typing === s.totalXp, "XPが二重計上されない: " + s.totalXp);
 
-  // 端末間マージ用 import（totalが大きい方を採用）
+  // 複数ユーザー(プロファイル): セーブが人ごとに独立している
+  const defaultXp = s.totalXp;
+  const prof = w.ShimamaruXp.addProfile("たろう");
+  w.ShimamaruXp.setActiveProfile(prof.id);
+  assert(w.ShimamaruXp.load().totalXp === 0, "新プロファイルはXP 0 から始まる");
+  w.ShimamaruXp.addXp(500, { source: "task" });
+  assert(w.ShimamaruXp.load().totalXp === 500, "新プロファイルに独立して加算");
+  w.ShimamaruXp.setActiveProfile("default");
+  assert(w.ShimamaruXp.load().totalXp === defaultXp, "default のXPは別管理で保持: " + defaultXp);
+
+  // 内部切替: リンクの ?player=なまえ で自動的にその人へ（UIなし）
+  w.history.replaceState({}, "", "?player=はなこ");
+  w.applyProfileFromUrl();
+  const active = w.ShimamaruXp.getActiveProfile();
+  const hanako = w.ShimamaruXp.listProfiles().find((p) => p.id === active);
+  assert(hanako && hanako.name === "はなこ", "?player= で自動的にその人へ切替: " + (hanako && hanako.name));
+  assert(w.ShimamaruXp.load().totalXp === 0, "切替先(はなこ)はまっさらなセーブ");
+  w.history.replaceState({}, "", "/"); // 後続テストのため戻す
+  w.ShimamaruXp.setActiveProfile("default");
+
+  // 端末間マージ用 import（totalが大きい方を採用）。active=default。
   const merged = w.ShimamaruXp.importJson(JSON.stringify({ version: 1, totalXp: 99999, level: 1, plays: 9, source: { task: 99999 } }));
   assert(merged.totalXp === 99999 && merged.level > 1, "import(大きい方)でマージ: Lv" + merged.level);
 

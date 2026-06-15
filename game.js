@@ -700,6 +700,16 @@ const bgmDbName = "shimaenagaTypingBgmLibrary";
 const bgmDbVersion = 1;
 const bgmStoreName = "tracks";
 
+// プロファイル(複数ユーザー): 進行データのキーをアクティブな人ごとに名前空間化する。
+// "default" は後方互換で素のキーを使う。アクティブIDは shimamaru-xp.js が共有管理。
+function activeProfileId() {
+  return window.ShimamaruXp ? window.ShimamaruXp.getActiveProfile() : "default";
+}
+function pkey(base) {
+  const id = activeProfileId();
+  return id === "default" ? base : `${base}::${id}`;
+}
+
 let WEEKLY_PLAN = [
   { day: "日", title: "ストーリーさんぽ", mode: "story", goal: "1ステージ", note: "物語を進める日" },
   { day: "月", title: "指ならし", mode: "tutorial", goal: "1周", note: "ホームポジション確認" },
@@ -1009,7 +1019,7 @@ function toPastedTextItem(text) {
 
 function loadRecords() {
   try {
-    return JSON.parse(localStorage.getItem(storeKey)) || {
+    return JSON.parse(localStorage.getItem(pkey(storeKey))) || {
       bestScore: 0,
       bestWpm: 0,
       plays: 0,
@@ -1026,7 +1036,7 @@ function saveRecords(result) {
   records.bestWpm = Math.max(records.bestWpm, result.wpm);
   records.plays += 1;
   records.accuracyTotal += result.accuracy;
-  localStorage.setItem(storeKey, JSON.stringify(records));
+  localStorage.setItem(pkey(storeKey), JSON.stringify(records));
   saveScheduleProgress(result);
   renderRecords();
   renderSchedule();
@@ -1034,14 +1044,14 @@ function saveRecords(result) {
 
 function loadKeyStats() {
   try {
-    return JSON.parse(localStorage.getItem(keyStatsStoreKey)) || {};
+    return JSON.parse(localStorage.getItem(pkey(keyStatsStoreKey))) || {};
   } catch {
     return {};
   }
 }
 
 function saveKeyStats(stats) {
-  localStorage.setItem(keyStatsStoreKey, JSON.stringify(stats));
+  localStorage.setItem(pkey(keyStatsStoreKey), JSON.stringify(stats));
 }
 
 function recordKeyAttempt(targetKey, hit) {
@@ -1085,7 +1095,7 @@ function renderRecords() {
 
 function loadScheduleProgress() {
   try {
-    return JSON.parse(localStorage.getItem(scheduleStoreKey)) || { days: {} };
+    return JSON.parse(localStorage.getItem(pkey(scheduleStoreKey))) || { days: {} };
   } catch {
     return { days: {} };
   }
@@ -1111,7 +1121,7 @@ function saveScheduleProgress(result) {
   day.minutes += Math.max(1, Math.round((Date.now() - state.startedAt) / 60000));
   day.modes[state.mode] = (day.modes[state.mode] || 0) + 1;
   progress.days[today] = day;
-  localStorage.setItem(scheduleStoreKey, JSON.stringify(progress));
+  localStorage.setItem(pkey(scheduleStoreKey), JSON.stringify(progress));
 }
 
 function renderSchedule() {
@@ -1764,7 +1774,7 @@ function handleBgmDrop(event) {
 
 function loadStoryProgress() {
   try {
-    return JSON.parse(localStorage.getItem(storyStoreKey)) || {
+    return JSON.parse(localStorage.getItem(pkey(storyStoreKey))) || {
       clearedStages: [],
       stars: {},
       lastStageId: STORY_STAGES[0].id
@@ -1783,7 +1793,7 @@ function saveStoryProgress(stageId, stars) {
   const currentIndex = STORY_STAGES.findIndex((stage) => stage.id === stageId);
   const nextStage = STORY_STAGES[currentIndex + 1];
   progress.lastStageId = nextStage?.id || stageId;
-  localStorage.setItem(storyStoreKey, JSON.stringify(progress));
+  localStorage.setItem(pkey(storyStoreKey), JSON.stringify(progress));
   return progress;
 }
 
@@ -2724,6 +2734,31 @@ function showTitle() {
   renderSchedule();
 }
 
+// ---- プロファイル(複数ユーザー): 内部処理のみ ----
+// 画面に切替UIは出さない。誰がプレイ中かは共有キー shimamaru:profile に保存され、
+// typing はそれに黙って従う。別アプリやリンクから誰を指定するかだけで切り替わる:
+//   ?profile=<id>     … IDを直接指定（アプリ間連携用）
+//   ?player=<なまえ>  … 名前で指定。無ければ自動作成して以後その人として継続。
+// 一度決まれば共有キーに残るので、次回プレーンURLで開いても同じ人が続く。
+function applyProfileFromUrl() {
+  if (!window.ShimamaruXp) return;
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get("profile");
+    if (id) {
+      window.ShimamaruXp.setActiveProfile(id);
+      return;
+    }
+    const name = (params.get("player") || "").trim();
+    if (!name) return;
+    const existing = window.ShimamaruXp.listProfiles().find((profile) => profile.name === name);
+    const profile = existing || window.ShimamaruXp.addProfile(name);
+    window.ShimamaruXp.setActiveProfile(profile.id);
+  } catch (e) {
+    /* URL/storage が使えない環境では無視 */
+  }
+}
+
 function retryCurrentMode() {
   if (isStoryMode()) {
     startStoryStage(state.storyStageId);
@@ -2808,6 +2843,7 @@ els.difficultyButtons.forEach((button) => {
   });
 });
 
+applyProfileFromUrl();
 renderRecords();
 renderSchedule();
 renderReminder();
