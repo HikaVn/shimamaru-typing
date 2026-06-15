@@ -2030,17 +2030,24 @@ function getFixedFingerBaseX(fingerId, tipX, tipY, baseY) {
 function getThumbShape(handSide, targetKeyEl, layout) {
   if (!layout) return null;
   const spaceKeyEl = targetKeyEl || getHomeKeyElement("thumb");
-  if (!spaceKeyEl) return null;
+  const indexKeyEl = getHomeKeyElement(`${handSide}-index`);
+  if (!spaceKeyEl || !indexKeyEl) return null;
   const spaceRect = getKeyboardRelativeRect(spaceKeyEl);
+  const indexRect = getKeyboardRelativeRect(indexKeyEl);
   const inward = handSide === "left" ? 1 : -1; // 中央へ向かう向き
   const baseWidth = Math.max(38, Math.min(62, layout.keyHeight * 0.96));
   const tipWidth = Math.max(26, Math.min(44, layout.keyHeight * 0.68));
-  // 付け根は手のひら内側・やや下（人差し指の付け根あたりの真下）に置く。
-  const baseX = spaceRect.centerX - inward * (spaceRect.width * 0.5 + layout.keyHeight * 0.85);
+  // 先端は人差し指の真下より「ちょい内側」。スペースバー上に乗るようクランプ。
+  const margin = layout.keyHeight * 0.2;
+  let tipX = indexRect.centerX + inward * layout.keyHeight * 0.55;
+  tipX = handSide === "left"
+    ? Math.max(spaceRect.left + margin, tipX)
+    : Math.min(spaceRect.right - margin, tipX);
+  // 角度は他の4指(30°)より少し垂直(24°)。付け根は手のひら内側・やや下に置く。
+  const restTipY = spaceRect.centerY + layout.keyHeight * 0.02;
+  const tipY = restTipY + (targetKeyEl ? layout.keyHeight * 0.06 : 0); // 打鍵時はわずかに押し込む
   const baseY = layout.knuckleY + layout.keyHeight * 1.05;
-  // 先端は左右の親指を離してスペースバー上に休ませる。打鍵時はわずかに押し込む。
-  const tipX = spaceRect.centerX - inward * spaceRect.width * 0.18;
-  const tipY = spaceRect.centerY + layout.keyHeight * (targetKeyEl ? 0.08 : 0.02);
+  const baseX = tipX - inward * Math.tan(24 * Math.PI / 180) * (baseY - restTipY);
   return createTaperedSegmentShapeBetween(baseX, baseY, tipX, tipY, baseWidth, tipWidth);
 }
 

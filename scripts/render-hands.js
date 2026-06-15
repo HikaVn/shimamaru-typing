@@ -150,7 +150,34 @@ function thumbNatural(handSide, layout, spaceRect, isLeft, baseWidth, tipWidth) 
   return createTaperedSegmentShapeBetween(baseX, baseY, tipX, tipY, baseWidth, tipWidth);
 }
 
-const VARIANTS = { current: thumbCurrent, natural: thumbNatural };
+const VARIANTS = { current: thumbCurrent, natural: thumbNatural, idx: thumbIdx, sym: thumbSym };
+
+// 親指を「人差し指の真下よりちょい内側」「４指より少し垂直」に。
+// idx: 人差し指Xを基準に内寄せ（スペースバー上にクランプ）
+function thumbIdx(handSide, layout, spaceRect, isLeft, baseWidth, tipWidth) {
+  const inward = isLeft ? 1 : -1;
+  const indexRect = keyRect(isLeft ? "f" : "j");
+  const inset = layout.keyHeight * 0.55;     // 真下より「ちょい内側」
+  let tipX = indexRect.centerX + inward * inset;
+  const margin = layout.keyHeight * 0.2;
+  tipX = isLeft ? Math.max(spaceRect.left + margin, tipX) : Math.min(spaceRect.right - margin, tipX);
+  return thumbFromAngle(layout, spaceRect, inward, tipX, 24);
+}
+// sym: スペース中央対称で外側へ広げる
+function thumbSym(handSide, layout, spaceRect, isLeft, baseWidth, tipWidth) {
+  const inward = isLeft ? 1 : -1;
+  const tipX = spaceRect.centerX - inward * spaceRect.width * 0.34;
+  return thumbFromAngle(layout, spaceRect, inward, tipX, 24);
+}
+function thumbFromAngle(layout, spaceRect, inward, tipX, angleDeg) {
+  const baseWidth = Math.max(38, Math.min(62, layout.keyHeight * 0.96));
+  const tipWidth = Math.max(26, Math.min(44, layout.keyHeight * 0.68));
+  const tipY = spaceRect.centerY + layout.keyHeight * 0.02;
+  const baseY = layout.knuckleY + layout.keyHeight * 1.05;
+  const theta = angleDeg * Math.PI / 180;
+  const baseX = tipX - inward * Math.tan(theta) * (baseY - tipY);
+  return createTaperedSegmentShapeBetween(baseX, baseY, tipX, tipY, baseWidth, tipWidth);
+}
 
 function createSegmentShapeBetween(baseX, baseY, tipX, tipY, width) {
   const dx = tipX - baseX, dy = tipY - baseY;
