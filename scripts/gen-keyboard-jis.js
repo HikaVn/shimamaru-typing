@@ -80,6 +80,7 @@ rows.push(layoutRow(5, [
   { w:4, code:".", label:".", sub:"る" },
   { w:4, code:"/", label:"/", sub:"め" },
   { w:4, label:"\\", sub:"ろ", cls:"kb-jp", deco:true },
+  { w:4, label:"shift", cls:"kb-fn", deco:true },
 ]));
 
 // 行6: スペース行（JIS の親指まわり）
