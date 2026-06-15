@@ -30,10 +30,13 @@ const L = (ch) => ({ w:4, code: ch, label: ch.toUpperCase(), sub: kana[ch] });
 const rows = [];
 
 // 行1: ファンクション行（装飾）。K380 風にデバイス切替(①②③)＋メディアアイコンを併記（近似）。
-const fnIcons = ["①","②","③","🔆","🔍","😊","📷","⏮","⏯","⏭","🔉","🔇"]; // F1..F12
+// 実機写真(rectified)から読み取った並び。F1-3=デバイス, F4=画面, F5=検索, F6=戻る,
+// F7=音声, F8=絵文字, F9=スクショ, F10=再生/停止, F11=ミュート, F12=音量小, ins=音量大。
+const fnIcons = ["①","②","③","🖥","🔍","←","🎤","😊","📷","⏯","🔇","🔉"]; // F1..F12
 rows.push(layoutRow(1, [
   { w:6, label:"esc", cls:"kb-fn", deco:true },
   ...fnIcons.map((ic, i) => ({ w:4, label: ic, sub: `F${i+1}`, cls:"kb-fn kb-fnmedia", deco:true })),
+  { w:4, label:"🔊", sub:"ins", cls:"kb-fn kb-fnmedia", deco:true },
   { w:6, label:"🔒", sub:"del", cls:"kb-fn", deco:true },
 ]));
 
@@ -84,15 +87,16 @@ rows.push(layoutRow(5, [
   { w:4, label:"shift", cls:"kb-fn", deco:true },
 ]));
 
-// 行6: スペース行（JIS の親指まわり）
+// 行6: スペース行（JIS の親指まわり）。写真に合わせ ctrl の隣に fn を追加。
 rows.push(layoutRow(6, [
-  { w:6, label:"ctrl", cls:"kb-fn", deco:true },
+  { w:5, label:"ctrl", cls:"kb-fn", deco:true },
+  { w:4, label:"fn", cls:"kb-fn", deco:true },
   { w:5, label:"⌘", sub:"opt", cls:"kb-fn", deco:true },
   { w:5, label:"alt", sub:"⌘", cls:"kb-fn", deco:true },
   { w:5, label:"無変換", sub:"英数", cls:"kb-fn", deco:true },
-  { w:20, code:" ", label:"space", cls:"kb-space", deco:false },
-  { w:5, label:"変換", sub:"かな", cls:"kb-fn", deco:true },
-  { w:6, label:"かな", sub:"ｶﾅ/英", cls:"kb-fn", deco:true },
+  { w:16, code:" ", label:"space", cls:"kb-space", deco:false },
+  { w:6, label:"変換", sub:"かな", cls:"kb-fn", deco:true },
+  { w:6, label:"かな", sub:"ﾛｰﾏ字", cls:"kb-fn", deco:true },
 ]));
 
 // すべてのキーを集約
