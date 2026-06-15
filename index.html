@@ -433,8 +433,18 @@
           <div class="moon" aria-hidden="true"></div>
           <div class="trees trees-back" aria-hidden="true"></div>
           <div class="trees trees-front" aria-hidden="true"></div>
+          <div class="xp-badge" id="xpBadge" aria-hidden="true">
+            <span class="xp-badge-lv">Lv <strong id="levelDisplay">1</strong></span>
+            <span class="xp-badge-bar"><i id="xpBar"></i></span>
+            <span class="xp-badge-gain" id="xpGain">+0</span>
+          </div>
           <div class="path">
             <div class="progress" id="walkProgress"></div>
+            <!-- ワシ(鷲)プレースホルダ: .eagle-art の中身を差し替えれば本番アセットに。
+                 出現/位置は game.js の updateEagle() が制御。 -->
+            <div class="eagle" id="eagle" aria-hidden="true">
+              <div class="eagle-art">🦅</div>
+            </div>
             <div class="runner" id="runner" aria-hidden="true">
               <div class="character-rig runner-rig">
                 <img class="bird runner-bird" src="shimaenaga-main.png" alt="">
@@ -479,16 +489,25 @@
             <div><span>ミス</span><strong id="finalMisses">0</strong></div>
             <div><span>最大コンボ</span><strong id="finalMaxCombo">0</strong></div>
             <div><span>木の実</span><strong id="finalNuts">0</strong></div>
+            <div class="result-xp"><span>経験値</span><strong id="finalXp">+0</strong></div>
           </div>
+          <p class="result-level" id="resultLevel"></p>
           <p class="tip" id="resultTip"></p>
           <div class="title-actions">
             <button class="primary" id="retry">もう一度</button>
             <button class="primary hidden" id="resultNextStory">次へ</button>
             <button class="secondary" id="resultToTitle">タイトルへ</button>
           </div>
+          <div class="xp-port">
+            <span>けいけんち連携</span>
+            <button class="secondary" id="xpExport">書き出し</button>
+            <button class="secondary" id="xpImport">取り込み</button>
+            <input type="file" id="xpImportFile" accept="application/json" hidden>
+          </div>
         </div>
       </section>
     </main>
+    <script src="shimamaru-xp.js"></script>
     <script src="game.js"></script>
   </body>
 </html>

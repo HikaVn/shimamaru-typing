@@ -1480,6 +1480,121 @@ button {
   content: "";
 }
 
+/* ワシ(鷲): 残り時間が半分を切ると左(後ろ)から出現し、時間が減るほど runner に迫る。
+   見た目は .eagle-art を差し替えれば本番アセットに置き換え可能。 */
+.eagle {
+  position: absolute;
+  left: -20%;
+  bottom: 26px;
+  width: 110px;
+  aspect-ratio: 1.4;
+  z-index: 2;
+  opacity: 0;
+  transform: scaleX(-1); /* 進行方向(右)を向く */
+  transition: left 900ms linear, opacity 400ms ease;
+  pointer-events: none;
+}
+
+.eagle--chasing {
+  opacity: 1;
+  animation: eagle-flap 420ms ease-in-out infinite;
+}
+
+.eagle--close {
+  filter: drop-shadow(0 0 10px rgba(217, 75, 82, 0.55));
+}
+
+.eagle-art {
+  font-size: 76px;
+  line-height: 1;
+  text-align: center;
+  filter: drop-shadow(0 8px 10px rgba(31, 53, 61, 0.25));
+}
+
+@keyframes eagle-flap {
+  0%, 100% { transform: scaleX(-1) translateY(0) rotate(-3deg); }
+  50% { transform: scaleX(-1) translateY(-7px) rotate(2deg); }
+}
+
+/* 経験値バッジ(プレイ中) */
+.xp-badge {
+  position: absolute;
+  top: 12px;
+  left: 14px;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(47, 95, 93, 0.86);
+  color: #fff;
+  font-weight: 900;
+  font-size: 0.78rem;
+  box-shadow: 0 8px 16px rgba(31, 53, 61, 0.18);
+}
+
+.xp-badge-bar {
+  display: block;
+  width: 88px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.28);
+  overflow: hidden;
+}
+
+.xp-badge-bar i {
+  display: block;
+  width: 0%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #ffd28a, var(--berry));
+  transition: width 280ms ease;
+}
+
+.xp-badge-gain {
+  color: #ffe5a8;
+}
+
+.xp-badge.level-up {
+  animation: xp-pop 520ms ease;
+}
+
+@keyframes xp-pop {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.16); }
+  100% { transform: scale(1); }
+}
+
+/* リザルトの経験値表示 */
+.result-xp {
+  grid-column: 1 / -1;
+}
+
+.result-level {
+  min-height: 22px;
+  margin: 4px 0 0;
+  color: var(--pine);
+  font-weight: 900;
+}
+
+.xp-port {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.xp-port button {
+  padding: 6px 12px;
+  font-size: 0.8rem;
+}
+
 .typing-panel {
   max-width: 1120px;
   margin: 14px auto 0;

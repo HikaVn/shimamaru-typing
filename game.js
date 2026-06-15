@@ -308,15 +308,17 @@ function applyContentData(data) {
   }
 }
 
+// 全モードに制限時間を導入。残り時間が半分を切るとワシ(鷲)が追ってくる。
 const MODE_SECONDS = {
-  practice: 0,
-  longform: 0,
-  pastedText: 0,
+  practice: 60,
+  longform: 90,
+  pastedText: 90,
   challenge: 60,
   longformChallenge: 90,
-  weakKeys: 0,
-  symbols: 0
+  weakKeys: 60,
+  symbols: 60
 };
+const STORY_SECONDS = 120;
 
 const PRACTICE_WORDS = 15;
 const LONGFORM_LINES = 3;
@@ -627,7 +629,12 @@ const els = {
   combo: document.querySelector("#combo"),
   accuracy: document.querySelector("#accuracy"),
   runner: document.querySelector("#runner"),
+  eagle: document.querySelector("#eagle"),
   progress: document.querySelector("#walkProgress"),
+  xpBadge: document.querySelector("#xpBadge"),
+  levelDisplay: document.querySelector("#levelDisplay"),
+  xpBar: document.querySelector("#xpBar"),
+  xpGain: document.querySelector("#xpGain"),
   bestScore: document.querySelector("#bestScore"),
   bestWpm: document.querySelector("#bestWpm"),
   avgAccuracy: document.querySelector("#avgAccuracy"),
@@ -671,6 +678,11 @@ const els = {
   finalMisses: document.querySelector("#finalMisses"),
   finalMaxCombo: document.querySelector("#finalMaxCombo"),
   finalNuts: document.querySelector("#finalNuts"),
+  finalXp: document.querySelector("#finalXp"),
+  resultLevel: document.querySelector("#resultLevel"),
+  xpExport: document.querySelector("#xpExport"),
+  xpImport: document.querySelector("#xpImport"),
+  xpImportFile: document.querySelector("#xpImportFile"),
   resultTip: document.querySelector("#resultTip"),
   resultNextStory: document.querySelector("#resultNextStory"),
   difficultyButtons: document.querySelectorAll("[data-difficulty]")
@@ -910,6 +922,10 @@ function createInitialState() {
     completedWords: 0,
     startedAt: 0,
     secondsLeft: 0,
+    totalSeconds: 0,
+    lastCharAt: 0,
+    sessionXp: 0,
+    baseXp: 0,
     lastWordIndex: -1,
     wordOrder: [],
     wordOrderSource: "",
@@ -1822,6 +1838,9 @@ function startStoryStage(stageId) {
   state.storyStage = stage;
   state.difficulty = stage.difficulty || "hard";
   state.longTextOrder = shuffleIndexes(LONG_TEXTS.length);
+  state.secondsLeft = STORY_SECONDS;
+  state.totalSeconds = STORY_SECONDS;
+  state.baseXp = getStoredXp();
   state.startedAt = Date.now();
   els.title.classList.add("hidden");
   els.tutorial.classList.add("hidden");
@@ -1831,13 +1850,16 @@ function startStoryStage(stageId) {
   els.game.classList.remove("hidden");
   els.game.classList.toggle("longform-mode", isLongformMode());
   els.modeLabel.textContent = stage.title;
-  els.timeLabel.textContent = "残り";
+  els.timeLabel.textContent = "時間";
   els.difficultyLabel.textContent = stage.type === "long" ? "ストーリー文章" : "ストーリー単語";
   els.storyNote.textContent = stage.intro;
   els.storyNote.classList.remove("hidden");
   pickNextWord();
+  resetEagle();
+  renderXpBadge();
   renderHud();
   clearInterval(timerId);
+  timerId = setInterval(tick, 1000);
   focusInput();
 }
 
@@ -2239,7 +2261,9 @@ function startGame(mode, options = {}) {
   state = createInitialState();
   state.mode = mode;
   state.difficulty = options.difficulty || state.difficulty;
-  state.secondsLeft = MODE_SECONDS[mode];
+  state.secondsLeft = MODE_SECONDS[mode] || 60;
+  state.totalSeconds = state.secondsLeft;
+  state.baseXp = getStoredXp();
   state.startedAt = Date.now();
   els.title.classList.add("hidden");
   els.tutorial.classList.add("hidden");
@@ -2250,7 +2274,7 @@ function startGame(mode, options = {}) {
   els.game.classList.toggle("longform-mode", isLongformMode());
   els.storyNote.classList.add("hidden");
   els.modeLabel.textContent = getModeLabel(mode);
-  els.timeLabel.textContent = isTimedMode() ? "時間" : "残り";
+  els.timeLabel.textContent = "時間";
   if (isLongformMode()) {
     els.difficultyLabel.textContent = isPastedTextMode() ? "貼り付け文章" : "文章";
     state.longTextOrder = shuffleIndexes(getCurrentSource().length);
@@ -2264,13 +2288,13 @@ function startGame(mode, options = {}) {
     setDifficulty(state.difficulty);
   }
   pickNextWord();
+  resetEagle();
+  renderXpBadge();
   renderHud();
   focusInput();
 
   clearInterval(timerId);
-  if (isTimedMode()) {
-    timerId = setInterval(tick, 1000);
-  }
+  timerId = setInterval(tick, 1000);
 }
 
 function getModeLabel(mode) {
@@ -2396,15 +2420,14 @@ function renderWord() {
 
 function renderHud() {
   const accuracy = getAccuracy();
-  const targetCount = getTargetCount();
-  const remaining = targetCount - state.completedWords;
-  els.timeLeft.textContent = isTimedMode() ? state.secondsLeft : Math.max(0, remaining);
+  els.timeLeft.textContent = Math.max(0, state.secondsLeft);
   els.score.textContent = state.score;
   els.combo.textContent = state.combo;
   els.accuracy.textContent = `${Math.round(accuracy)}%`;
   const walk = Math.min(92, state.completedWords * 5 + state.combo * 1.2);
   els.progress.style.setProperty("--walk", `${walk}%`);
   els.runner.style.left = `${Math.min(86, 4 + walk * 0.88)}%`;
+  updateEagle();
 }
 
 function getAccuracy() {
@@ -2435,6 +2458,7 @@ function handleInput(event) {
     state.typed = nextTyped;
     state.correctChars += 1;
     state.score += 10 + Math.floor(state.combo / 10);
+    accrueXp();
     bounceRunner("happy");
 
     if (isWordComplete()) {
@@ -2491,18 +2515,124 @@ function bounceRunner(className) {
   setTimeout(() => els.runner.classList.remove(className), 240);
 }
 
+function getStoredXp() {
+  return window.ShimamaruXp ? window.ShimamaruXp.load().totalXp : 0;
+}
+
+// 正解打鍵ごとに「速いほど多い」XPを加算（直近の打鍵間隔から算出）。
+function accrueXp() {
+  const now = Date.now();
+  const interval = state.lastCharAt ? now - state.lastCharAt : 0;
+  state.lastCharAt = now;
+  const xp = window.ShimamaruXp ? window.ShimamaruXp.xpForKeystroke(interval, state.combo) : 1;
+  state.sessionXp += xp;
+  renderXpBadge();
+}
+
+// セッションのXPを共有ストアに確定保存。
+function commitSessionXp() {
+  if (!window.ShimamaruXp) {
+    return { gained: state.sessionXp, level: 1, leveledUp: false };
+  }
+  const res = window.ShimamaruXp.addXp(state.sessionXp, { source: "typing", play: true });
+  return { gained: res.gained, level: res.state.level, leveledUp: res.leveledUp };
+}
+
+function renderXpBadge() {
+  if (!els.xpBadge) return;
+  const liveTotal = state.baseXp + state.sessionXp;
+  let level = 1;
+  let ratio = 0;
+  if (window.ShimamaruXp) {
+    level = window.ShimamaruXp.levelForXp(liveTotal);
+    ratio = window.ShimamaruXp.progress({ level, totalXp: liveTotal }).ratio;
+  }
+  if (els.levelDisplay) els.levelDisplay.textContent = level;
+  if (els.xpBar) els.xpBar.style.width = `${Math.round(ratio * 100)}%`;
+  if (els.xpGain) els.xpGain.textContent = `+${state.sessionXp}`;
+  if (level > (state.shownLevel ?? level)) {
+    els.xpBadge.classList.remove("level-up");
+    void els.xpBadge.offsetWidth;
+    els.xpBadge.classList.add("level-up");
+  }
+  state.shownLevel = level;
+}
+
+function renderResultXp(result) {
+  if (els.finalXp) els.finalXp.textContent = `+${result.xpGained}`;
+  if (!els.resultLevel) return;
+  if (result.leveledUp) {
+    els.resultLevel.textContent = `レベルアップ！ Lv ${result.level} になったジュリ！`;
+  } else {
+    const toNext = window.ShimamaruXp ? window.ShimamaruXp.progress().toNext : 0;
+    els.resultLevel.textContent = `現在 Lv ${result.level} ・ つぎのレベルまで ${toNext} XP`;
+  }
+}
+
+function resetEagle() {
+  if (!els.eagle) return;
+  els.eagle.classList.remove("eagle--chasing", "eagle--close");
+  els.eagle.style.left = "-20%";
+}
+
+// 残り時間が半分を切ると左(後ろ)から出現し、時間が減るほど runner に迫る。
+function updateEagle() {
+  if (!els.eagle) return;
+  const total = state.totalSeconds || 0;
+  const half = total / 2;
+  if (total <= 0 || state.secondsLeft > half) {
+    if (els.eagle.classList.contains("eagle--chasing")) resetEagle();
+    return;
+  }
+  els.eagle.classList.add("eagle--chasing");
+  const chase = Math.min(1, Math.max(0, (half - state.secondsLeft) / half)); // 0→1
+  const runnerLeft = parseFloat(els.runner.style.left) || 4;
+  const gap = 30 - 27 * chase; // 後ろとの距離 30%→3%
+  const left = Math.max(-20, runnerLeft - gap);
+  els.eagle.style.left = `${left}%`;
+  els.eagle.classList.toggle("eagle--close", chase > 0.75);
+}
+
+function exportXp() {
+  if (!window.ShimamaruXp) return;
+  const blob = new Blob([window.ShimamaruXp.exportJson()], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "shimamaru-xp.json";
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function importXpFile(file) {
+  if (!window.ShimamaruXp || !file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const xpState = window.ShimamaruXp.importJson(String(reader.result));
+    if (els.resultLevel) {
+      els.resultLevel.textContent = `取り込み完了 ・ 現在 Lv ${xpState.level}（${xpState.totalXp} XP）`;
+    }
+  };
+  reader.readAsText(file);
+}
+
 function finishGame() {
   clearInterval(timerId);
+  resetEagle();
   const elapsedMinutes = Math.max(1 / 60, (Date.now() - state.startedAt) / 60000);
   const wpm = Math.round((state.correctChars / 5) / elapsedMinutes);
   const accuracy = Math.round(getAccuracy());
+  const xpOutcome = commitSessionXp();
   const result = {
     score: state.score,
     wpm,
     accuracy,
     mistakes: state.mistakes,
     maxCombo: state.maxCombo,
-    nuts: state.completedWords
+    nuts: state.completedWords,
+    xpGained: xpOutcome.gained,
+    level: xpOutcome.level,
+    leveledUp: xpOutcome.leveledUp
   };
   if (isStoryMode()) {
     const stars = getStoryStars(result.accuracy);
@@ -2528,6 +2658,7 @@ function renderResult(result) {
   els.finalMisses.textContent = result.mistakes;
   els.finalMaxCombo.textContent = result.maxCombo;
   els.finalNuts.textContent = result.nuts;
+  renderResultXp(result);
   els.resultTip.textContent = getTip(result);
 }
 
@@ -2544,6 +2675,7 @@ function renderStoryResult(result, stars) {
   els.finalMisses.textContent = result.mistakes;
   els.finalMaxCombo.textContent = result.maxCombo;
   els.finalNuts.textContent = result.nuts;
+  renderResultXp(result);
   els.resultTip.textContent = `${state.storyStage.outro} ${state.storyStage.reward}を見つけたジュリ。`;
 }
 
@@ -2662,6 +2794,9 @@ els.storyToTitle.addEventListener("click", showTitle);
 els.resultToTitle.addEventListener("click", showTitle);
 els.retry.addEventListener("click", retryCurrentMode);
 els.resultNextStory.addEventListener("click", goNextStory);
+els.xpExport.addEventListener("click", exportXp);
+els.xpImport.addEventListener("click", () => els.xpImportFile.click());
+els.xpImportFile.addEventListener("change", (event) => importXpFile(event.target.files[0]));
 els.tutorialNext.addEventListener("click", advanceTutorialStep);
 els.tutorialRestart.addEventListener("click", restartTutorialStep);
 els.difficultyButtons.forEach((button) => {
