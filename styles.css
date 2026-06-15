@@ -1952,21 +1952,27 @@ button {
   gap: 6px;
 }
 
+/* 段ずれは左右パディングの合計を 10% で固定して作る。
+   合計を揃えることで全行のグリッド実効幅＝キー幅が一致し、
+   行ごとにキーが縮んで列が扇状に歪む（斜めに見える）のを防ぐ。 */
 .number-row {
   padding-left: 2%;
-  padding-right: 2%;
+  padding-right: 8%;
 }
 
 .top-row {
   padding-left: 4%;
+  padding-right: 6%;
 }
 
 .home-row {
   padding-left: 7%;
+  padding-right: 3%;
 }
 
 .bottom-row {
   padding-left: 10%;
+  padding-right: 0;
 }
 
 .space-row {
