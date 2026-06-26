@@ -2234,3 +2234,364 @@ button {
     max-width: 16px;
   }
 }
+
+/* ===== 苦手特訓（落ちものキー）モード ===== */
+.fall {
+  position: relative;
+  min-height: 100vh;
+  padding: 18px;
+  isolation: isolate;
+}
+
+.fall::before {
+  position: absolute;
+  inset: 0;
+  content: "";
+  z-index: -1;
+  background:
+    radial-gradient(circle at 50% -10%, rgba(255, 255, 255, 0.7), transparent 42%),
+    linear-gradient(180deg, #1c3a52 0%, #2c5871 40%, #5a93a8 100%);
+}
+
+.fall-hud {
+  grid-template-columns: 52px repeat(5, minmax(0, 1fr));
+}
+
+.fall-hud .meter {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.fall-hearts {
+  letter-spacing: 2px;
+  color: var(--berry);
+}
+
+.fall-hearts .lost {
+  color: rgba(38, 50, 56, 0.18);
+}
+
+.fall-stage {
+  max-width: 1120px;
+  margin: 0 auto;
+}
+
+.fall-field {
+  position: relative;
+  height: min(52vh, 460px);
+  min-height: 320px;
+  overflow: hidden;
+  border-radius: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  background:
+    radial-gradient(circle at 18% 14%, rgba(255, 255, 255, 0.16) 0 7%, transparent 8%),
+    radial-gradient(circle at 72% 26%, rgba(255, 255, 255, 0.12) 0 5%, transparent 6%),
+    linear-gradient(180deg, rgba(18, 40, 58, 0.6) 0%, rgba(36, 72, 77, 0.5) 60%, rgba(122, 173, 184, 0.5) 100%);
+  box-shadow: inset 0 12px 40px rgba(0, 0, 0, 0.25);
+}
+
+.fall-field.shake {
+  animation: fall-shake 220ms ease;
+}
+
+.fall-field.danger::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  pointer-events: none;
+  border-radius: 12px;
+  box-shadow: inset 0 0 60px 12px rgba(217, 75, 82, 0.55);
+  animation: fall-danger-pulse 720ms ease-in-out infinite;
+}
+
+.fall-danger-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 86%;
+  height: 2px;
+  background: repeating-linear-gradient(90deg, rgba(217, 75, 82, 0.9) 0 14px, transparent 14px 26px);
+  box-shadow: 0 0 12px rgba(217, 75, 82, 0.6);
+}
+
+.fall-level-bar {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  top: 8px;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.22);
+  overflow: hidden;
+}
+
+.fall-level-bar span {
+  display: block;
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--sun), #ffe6a8);
+  transition: width 220ms ease;
+}
+
+.fall-pool-tag {
+  position: absolute;
+  right: 12px;
+  top: 18px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 900;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.32);
+  z-index: 3;
+}
+
+.fall-key {
+  position: absolute;
+  top: 0;
+  transform: translate(-50%, -50%);
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  font-size: 1.5rem;
+  font-weight: 900;
+  color: #3a2a12;
+  background: linear-gradient(180deg, #fff6e6, #ffe2b3);
+  border: 2px solid rgba(141, 75, 32, 0.4);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.3);
+  will-change: top;
+  z-index: 2;
+}
+
+.fall-key .fall-key-sub {
+  position: absolute;
+  bottom: 3px;
+  right: 6px;
+  font-size: 0.6rem;
+  font-weight: 800;
+  color: rgba(58, 42, 18, 0.6);
+}
+
+.fall-key.weak {
+  color: #fff;
+  background: linear-gradient(180deg, #ef7c82, #d94b52);
+  border-color: rgba(255, 255, 255, 0.5);
+  box-shadow: 0 8px 18px rgba(217, 75, 82, 0.5);
+}
+
+.fall-key.fast {
+  color: #fff;
+  background: linear-gradient(180deg, #9b6bff, #6a3ddd);
+  border-color: rgba(255, 255, 255, 0.5);
+  animation: fall-fast-glow 600ms ease-in-out infinite alternate;
+}
+
+.fall-key.golden {
+  color: #6a4a05;
+  background: linear-gradient(180deg, #fff1a8, #f4b35d);
+  border-color: #fff;
+  box-shadow: 0 0 18px rgba(244, 179, 93, 0.9);
+  animation: fall-golden-spin 1.6s linear infinite;
+}
+
+.fall-key.dying {
+  animation: fall-pop 240ms ease forwards;
+}
+
+.fall-key.near {
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 2px;
+}
+
+.fall-spark {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--sun);
+  pointer-events: none;
+  z-index: 4;
+  animation: fall-spark-fly 480ms ease-out forwards;
+}
+
+.fall-floating-text {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  font-weight: 900;
+  color: #fff;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+  z-index: 5;
+  animation: fall-float-up 760ms ease-out forwards;
+}
+
+.fall-floating-text.heal { color: #aef0c0; }
+.fall-floating-text.xp { color: #ffe6a8; }
+
+.fall-defender {
+  position: absolute;
+  left: 50%;
+  bottom: 2px;
+  transform: translateX(-50%);
+  width: 96px;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.fall-defender .bird {
+  width: 96px;
+  filter: drop-shadow(0 10px 14px rgba(0, 0, 0, 0.4));
+}
+
+.fall-defender.hit {
+  animation: fall-defender-hit 360ms ease;
+}
+
+.fall-defender.cheer {
+  animation: fall-defender-cheer 280ms ease;
+}
+
+.fall-defender .chirp-mark {
+  top: -6%;
+  right: -6%;
+}
+
+.fall-defender.cheer .chirp-mark {
+  animation: chirp-pop 280ms ease;
+}
+
+.fall-banner {
+  position: absolute;
+  left: 50%;
+  top: 38%;
+  transform: translate(-50%, -50%);
+  padding: 10px 24px;
+  border-radius: 999px;
+  font-size: clamp(1.2rem, 4vw, 2rem);
+  font-weight: 900;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: 6;
+  white-space: nowrap;
+}
+
+.fall-banner.show {
+  animation: fall-banner-pop 1100ms ease forwards;
+}
+
+.fall-banner.fever {
+  background: linear-gradient(90deg, #ff7eb3, #ff758c, #ff7eb3);
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+}
+
+.fall-field.fever {
+  box-shadow: inset 0 0 70px 10px rgba(255, 126, 179, 0.4);
+}
+
+.fall-hint {
+  margin: 10px auto 0;
+  max-width: 1120px;
+  color: rgba(255, 255, 255, 0.92);
+  font-weight: 700;
+  text-align: center;
+}
+
+#fallKeyboard {
+  margin-top: 14px;
+}
+
+.fall-result {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(16, 32, 46, 0.7);
+  backdrop-filter: blur(8px);
+  z-index: 30;
+}
+
+.fall-xp-note {
+  margin: 6px 0 0;
+  color: var(--berry);
+  font-weight: 800;
+}
+
+.xp-panel strong {
+  color: var(--berry);
+  font-size: 1.15rem;
+}
+
+.mode-group-fall h2 {
+  color: var(--berry);
+}
+
+@keyframes fall-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-8px); }
+  75% { transform: translateX(8px); }
+}
+
+@keyframes fall-danger-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.9; }
+}
+
+@keyframes fall-pop {
+  0% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(1.6); opacity: 0; }
+}
+
+@keyframes fall-fast-glow {
+  from { box-shadow: 0 8px 18px rgba(106, 61, 221, 0.4); }
+  to { box-shadow: 0 8px 26px rgba(155, 107, 255, 0.9); }
+}
+
+@keyframes fall-golden-spin {
+  0%, 100% { transform: translate(-50%, -50%) rotate(-6deg); }
+  50% { transform: translate(-50%, -50%) rotate(6deg); }
+}
+
+@keyframes fall-spark-fly {
+  to { transform: translate(var(--dx, 0), var(--dy, 0)) scale(0.2); opacity: 0; }
+}
+
+@keyframes fall-float-up {
+  0% { transform: translate(-50%, -50%); opacity: 1; }
+  100% { transform: translate(-50%, -150%); opacity: 0; }
+}
+
+@keyframes fall-defender-hit {
+  0%, 100% { transform: translateX(-50%); }
+  30% { transform: translateX(-58%) rotate(-8deg); }
+  60% { transform: translateX(-42%) rotate(8deg); }
+}
+
+@keyframes fall-defender-cheer {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50% { transform: translateX(-50%) translateY(-12px); }
+}
+
+@keyframes fall-banner-pop {
+  0% { transform: translate(-50%, -50%) scale(0.4); opacity: 0; }
+  20% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; }
+  80% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+  100% { transform: translate(-50%, -90%) scale(1); opacity: 0; }
+}
+
+@media (max-width: 760px) {
+  .fall-hud {
+    grid-template-columns: 44px repeat(3, minmax(0, 1fr));
+  }
+  .fall-key {
+    width: 46px;
+    height: 46px;
+    font-size: 1.2rem;
+  }
+  .fall-field {
+    height: min(46vh, 380px);
+    min-height: 260px;
+  }
+}
