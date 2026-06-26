@@ -673,6 +673,36 @@ const els = {
   finalNuts: document.querySelector("#finalNuts"),
   resultTip: document.querySelector("#resultTip"),
   resultNextStory: document.querySelector("#resultNextStory"),
+  startFallAll: document.querySelector("#startFallAll"),
+  startFallWeak: document.querySelector("#startFallWeak"),
+  fall: document.querySelector("#fallScreen"),
+  fallBackToTitle: document.querySelector("#fallBackToTitle"),
+  fallField: document.querySelector("#fallField"),
+  fallKeyboard: document.querySelector("#fallKeyboard"),
+  fallHearts: document.querySelector("#fallHearts"),
+  fallLevel: document.querySelector("#fallLevel"),
+  fallLevelFill: document.querySelector("#fallLevelFill"),
+  fallModeLabel: document.querySelector("#fallModeLabel"),
+  fallScore: document.querySelector("#fallScore"),
+  fallCombo: document.querySelector("#fallCombo"),
+  fallXp: document.querySelector("#fallXp"),
+  fallPoolTag: document.querySelector("#fallPoolTag"),
+  fallBanner: document.querySelector("#fallBanner"),
+  fallDefender: document.querySelector("#fallDefender"),
+  fallChirp: document.querySelector("#fallChirp"),
+  fallResult: document.querySelector("#fallResult"),
+  fallRank: document.querySelector("#fallRank"),
+  fallFinalScore: document.querySelector("#fallFinalScore"),
+  fallFinalLevel: document.querySelector("#fallFinalLevel"),
+  fallFinalKills: document.querySelector("#fallFinalKills"),
+  fallFinalCombo: document.querySelector("#fallFinalCombo"),
+  fallFinalAccuracy: document.querySelector("#fallFinalAccuracy"),
+  fallFinalXp: document.querySelector("#fallFinalXp"),
+  fallResultTip: document.querySelector("#fallResultTip"),
+  fallXpNote: document.querySelector("#fallXpNote"),
+  fallRetry: document.querySelector("#fallRetry"),
+  fallResultToTitle: document.querySelector("#fallResultToTitle"),
+  xpSummary: document.querySelector("#xpSummary"),
   difficultyButtons: document.querySelectorAll("[data-difficulty]")
 };
 
@@ -2504,6 +2534,7 @@ function finishGame() {
     maxCombo: state.maxCombo,
     nuts: state.completedWords
   };
+  awardPracticeXp(result);
   if (isStoryMode()) {
     const stars = getStoryStars(result.accuracy);
     saveStoryProgress(state.storyStageId, stars);
@@ -2582,14 +2613,17 @@ function getTip(result) {
 
 function showTitle() {
   clearInterval(timerId);
+  stopFallGame();
   els.title.classList.remove("hidden");
   els.tutorial.classList.add("hidden");
   els.story.classList.add("hidden");
   els.paste.classList.add("hidden");
   els.game.classList.add("hidden");
   els.result.classList.add("hidden");
+  els.fall.classList.add("hidden");
   renderRecords();
   renderSchedule();
+  renderXpSummary();
 }
 
 function retryCurrentMode() {
@@ -2604,8 +2638,611 @@ function focusInput() {
   requestAnimationFrame(() => els.input.focus());
 }
 
+/* =========================================================================
+ * 経験値（Shimamaru-task 連携）
+ * このタイピングアプリは親アプリ「Shimamaru-task」のサブゲームという想定。
+ * 獲得した経験値(XP)は親アプリへ「持ち帰る」。
+ *  - 親アプリへ postMessage で通知（iframe ホスト / window.opener の両対応）
+ *  - 未同期分は localStorage の台帳に保持し、親アプリの ack で消し込む
+ * 親アプリ側の仕様に合わせたいときは、下の SHIMAMARU_BRIDGE だけ調整する。
+ * ====================================================================== */
+const SHIMAMARU_BRIDGE = {
+  // 親アプリへ postMessage する宛先 origin。
+  // セキュリティを上げるなら "*" を Shimamaru-task の正確な origin に変更する。
+  parentOrigin: "*",
+  source: "shimamaru-typing",
+  earnType: "xp-earned",
+  ackType: "xp-ack"
+};
+const xpLedgerStoreKey = "shimamaruTypingXpLedger";
+
+function loadXpLedger() {
+  try {
+    const data = JSON.parse(localStorage.getItem(xpLedgerStoreKey));
+    if (data && typeof data === "object") {
+      return {
+        pending: Number(data.pending) || 0,
+        lifetime: Number(data.lifetime) || 0,
+        lastEventId: Number(data.lastEventId) || 0,
+        events: Array.isArray(data.events) ? data.events.slice(-50) : []
+      };
+    }
+  } catch {}
+  return { pending: 0, lifetime: 0, lastEventId: 0, events: [] };
+}
+
+function saveXpLedger(ledger) {
+  localStorage.setItem(xpLedgerStoreKey, JSON.stringify(ledger));
+}
+
+// XP を獲得し、台帳に積んで親アプリへ持ち帰る。獲得した整数XPを返す。
+function earnXp(amount, meta = {}) {
+  const xp = Math.max(0, Math.round(amount || 0));
+  if (!xp) return 0;
+  const ledger = loadXpLedger();
+  ledger.lastEventId += 1;
+  ledger.pending += xp;
+  ledger.lifetime += xp;
+  const event = {
+    id: ledger.lastEventId,
+    xp,
+    mode: meta.mode || "",
+    detail: meta.detail || null,
+    at: Date.now()
+  };
+  ledger.events.push(event);
+  ledger.events = ledger.events.slice(-50);
+  saveXpLedger(ledger);
+  postXpToParent(event, ledger);
+  renderXpSummary();
+  return xp;
+}
+
+function postXpToParent(event, ledger) {
+  const message = {
+    source: SHIMAMARU_BRIDGE.source,
+    type: SHIMAMARU_BRIDGE.earnType,
+    version: 1,
+    event,
+    pending: ledger.pending,
+    lifetime: ledger.lifetime
+  };
+  try {
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage(message, SHIMAMARU_BRIDGE.parentOrigin);
+    }
+    if (window.opener) {
+      window.opener.postMessage(message, SHIMAMARU_BRIDGE.parentOrigin);
+    }
+  } catch {}
+}
+
+// 親アプリ（Shimamaru-task）からの ack を受けて、同期済みXPを未同期から消し込む。
+function handleParentMessage(event) {
+  const data = event.data;
+  if (!data || typeof data !== "object") return;
+  if (data.source && data.source === SHIMAMARU_BRIDGE.source) return; // 自分の echo は無視
+  if (data.type !== SHIMAMARU_BRIDGE.ackType) return;
+  const ledger = loadXpLedger();
+  if (typeof data.upToEventId === "number") {
+    const synced = ledger.events.filter((e) => e.id <= data.upToEventId).reduce((sum, e) => sum + e.xp, 0);
+    ledger.pending = Math.max(0, ledger.pending - synced);
+  } else if (typeof data.amount === "number") {
+    ledger.pending = Math.max(0, ledger.pending - data.amount);
+  } else {
+    ledger.pending = 0;
+  }
+  saveXpLedger(ledger);
+  renderXpSummary();
+}
+
+function renderXpSummary() {
+  if (!els.xpSummary) return;
+  const ledger = loadXpLedger();
+  const pendingText = ledger.pending > 0 ? `（未送信 ${ledger.pending}）` : "（送信済み）";
+  els.xpSummary.textContent = `${ledger.lifetime} XP ${pendingText}`;
+}
+
+// 練習系モード（れんしゅう・チャレンジ等）の貢献XP。撃墜モードより控えめに設定。
+function awardPracticeXp(result) {
+  const base = Math.floor((result.score || 0) / 120);
+  const accuracyBonus = result.accuracy >= 95 ? 15 : result.accuracy >= 85 ? 8 : 0;
+  const comboBonus = Math.floor((result.maxCombo || 0) / 5) * 2;
+  const xp = base + accuracyBonus + comboBonus + 5;
+  earnXp(xp, { mode: state.mode, detail: { kind: "practice", score: result.score } });
+}
+
+/* =========================================================================
+ * 苦手特訓モード（落ちものキー撃墜）
+ *  - 上から1文字キーが落下。正しいキーをタイプして撃墜。
+ *  - ラインを割られると体力が減り、0でゲームオーバー。
+ *  - レベルが上がると加速＆出現が増える。
+ *  - モード1「まんべんなく」: 全キーから始め、撃墜時間の遅い（苦手な）キーを
+ *    レベルアップごとに残し、最後は10キーまで絞る。
+ *  - モード2「いきなり苦手」: 既存の苦手キーは確定で常駐、他はモード1と同ルール。
+ * ====================================================================== */
+const FALL_LETTERS = "abcdefghijklmnopqrstuvwxyz".split("");
+const FALL_CONFIG = {
+  maxHearts: 5,
+  dangerLineRatio: 0.86,
+  spawnTopRatio: -0.04,
+  baseSpeed: 16,            // %/秒（Lv1）
+  speedPerLevel: 1.7,
+  maxSpeed: 48,
+  baseSpawnMs: 1300,
+  spawnDecPerLevel: 58,
+  minSpawnMs: 430,
+  baseConcurrent: 3,
+  concurrentPerLevel: 1 / 3,
+  maxConcurrent: 9,
+  killsPerLevel: 8,
+  maxLevel: 18,
+  minPool: 10,
+  poolPerLevel: 1,
+  feverCombo: 20,
+  goldenChance: 0.05,
+  fastChance: 0.12,
+  fallbackWeak: ["q", "z", "x", "p", "b"]
+};
+
+let fall = null;
+let fallRafId = null;
+
+function createFallState(mode) {
+  return {
+    mode,
+    running: false,
+    hearts: FALL_CONFIG.maxHearts,
+    score: 0,
+    combo: 0,
+    maxCombo: 0,
+    level: 1,
+    kills: 0,
+    misTaps: 0,
+    typedKeys: 0,
+    xpEarned: 0,
+    fever: false,
+    keys: [],
+    perf: {},
+    guaranteed: [],
+    pool: [...FALL_LETTERS],
+    spawnTimer: 0,
+    spawnInterval: FALL_CONFIG.baseSpawnMs,
+    lastFrame: 0,
+    nextId: 1,
+    startedAt: Date.now()
+  };
+}
+
+function startFall(mode) {
+  stopFallGame();
+  els.title.classList.add("hidden");
+  els.result.classList.add("hidden");
+  els.game.classList.add("hidden");
+  els.fall.classList.remove("hidden");
+  els.fallResult.classList.add("hidden");
+  setupFallKeyboard();
+
+  fall = createFallState(mode);
+  if (mode === "fallWeak") {
+    const weak = getWeakKeys(10).map((w) => w.key).filter((k) => FALL_LETTERS.includes(k));
+    fall.guaranteed = weak.length ? weak : [...FALL_CONFIG.fallbackWeak];
+  }
+  els.fallModeLabel.textContent = mode === "fallWeak" ? "いきなり苦手" : "まんべんなく";
+  fallRecomputePool();
+  fall.running = true;
+  fall.lastFrame = 0;
+  els.fallField.classList.remove("danger", "fever", "shake");
+  renderFallHud();
+  renderFallKeyboard();
+  const introWeak = fall.guaranteed.length ? `苦手キー ${fall.guaranteed.map(formatKey).join("、")} は確定で来るジュリ！` : "全キーから苦手をあぶり出すジュリ！";
+  showFallBanner(introWeak, false);
+  fallRafId = requestAnimationFrame(fallLoop);
+}
+
+function setupFallKeyboard() {
+  const tutorialKeyboard = document.querySelector(".tutorial .keyboard");
+  if (!tutorialKeyboard || !els.fallKeyboard) return;
+  els.fallKeyboard.innerHTML = tutorialKeyboard.innerHTML;
+  applyKeyboardLayout();
+}
+
+function stopFallGame() {
+  if (fallRafId) cancelAnimationFrame(fallRafId);
+  fallRafId = null;
+  if (fall) fall.running = false;
+  if (els.fallField) {
+    els.fallField.querySelectorAll(".fall-key, .fall-spark, .fall-floating-text").forEach((el) => el.remove());
+    els.fallField.classList.remove("danger", "fever", "shake");
+  }
+}
+
+function fallLevelSpeed() {
+  return Math.min(FALL_CONFIG.maxSpeed, FALL_CONFIG.baseSpeed + (fall.level - 1) * FALL_CONFIG.speedPerLevel);
+}
+
+function fallConcurrentCap() {
+  return Math.min(
+    FALL_CONFIG.maxConcurrent,
+    Math.floor(FALL_CONFIG.baseConcurrent + (fall.level - 1) * FALL_CONFIG.concurrentPerLevel)
+  );
+}
+
+// 文字ごとの「苦手さ」スコア。撃墜が遅い／突破されたキーほど高い＝プールに残る。
+function fallDifficultyScore(char) {
+  const perf = fall.perf[char];
+  if (!perf || perf.kills === 0) return 850 + (perf?.crossed || 0) * 600; // 未計測は残しておく
+  const avg = perf.totalMs / perf.kills;
+  return avg + (perf.crossed || 0) * 700;
+}
+
+// 出題プールを苦手さ順に絞る。レベルが上がるほど狭くなり、最後は10キー前後。
+function fallRecomputePool() {
+  const targetSize = Math.max(FALL_CONFIG.minPool, FALL_LETTERS.length - (fall.level - 1) * FALL_CONFIG.poolPerLevel);
+  const ranked = [...FALL_LETTERS].sort((a, b) => fallDifficultyScore(b) - fallDifficultyScore(a));
+  const kept = new Set(ranked.slice(0, targetSize));
+  fall.guaranteed.forEach((char) => kept.add(char)); // モード2の確定キーは必ず残す
+  fall.pool = FALL_LETTERS.filter((char) => kept.has(char));
+}
+
+// 出題プールから重み付き抽選（苦手キーほど出やすい）。
+function fallPickChar() {
+  const pool = fall.pool.length ? fall.pool : FALL_LETTERS;
+  const weights = pool.map(fallCharWeight);
+  const total = weights.reduce((a, b) => a + b, 0);
+  let r = Math.random() * total;
+  for (let i = 0; i < pool.length; i++) {
+    r -= weights[i];
+    if (r <= 0) return pool[i];
+  }
+  return pool[pool.length - 1];
+}
+
+function fallCharWeight(char) {
+  const perf = fall.perf[char];
+  let weight = 1;
+  if (perf && perf.kills > 0) {
+    const avg = perf.totalMs / perf.kills;
+    weight += Math.min(3, avg / 900);
+    weight += (perf.crossed || 0) * 0.6;
+  } else {
+    weight += 0.6;
+  }
+  if (fall.guaranteed.includes(char)) weight += 1.5;
+  return weight;
+}
+
+function fallSpawnKey() {
+  const char = fallPickChar();
+  let type = fall.guaranteed.includes(char) ? "weak" : "normal";
+  const roll = Math.random();
+  if (roll < FALL_CONFIG.goldenChance) type = "golden";
+  else if (roll < FALL_CONFIG.goldenChance + FALL_CONFIG.fastChance) type = "fast";
+  const speedScale = type === "fast" ? 1.5 : type === "golden" ? 0.72 : 1;
+  const speedPct = fallLevelSpeed() * speedScale * (0.9 + Math.random() * 0.25);
+  const entity = {
+    id: fall.nextId++,
+    char,
+    type,
+    x: 0.08 + Math.random() * 0.84,
+    y: FALL_CONFIG.spawnTopRatio,
+    speed: speedPct / 100,
+    spawnedAt: Date.now()
+  };
+  entity.el = createFallKeyEl(entity);
+  els.fallField.append(entity.el);
+  positionFallKey(entity);
+  fall.keys.push(entity);
+  renderFallKeyboard();
+}
+
+function createFallKeyEl(entity) {
+  const el = document.createElement("div");
+  el.className = `fall-key ${entity.type}`;
+  el.dataset.char = entity.char;
+  const layout = KEYBOARD_LAYOUTS[keyboardLayout] || KEYBOARD_LAYOUTS.jis;
+  const info = layout.keys[entity.char];
+  const main = info?.main || entity.char.toUpperCase();
+  const sub = info?.sub ? `<span class="fall-key-sub">${info.sub}</span>` : "";
+  el.innerHTML = `${main}${sub}`;
+  return el;
+}
+
+function positionFallKey(k) {
+  k.el.style.left = `${k.x * 100}%`;
+  k.el.style.top = `${k.y * 100}%`;
+}
+
+function removeFallKey(k, dying) {
+  const idx = fall.keys.indexOf(k);
+  if (idx >= 0) fall.keys.splice(idx, 1);
+  if (dying) {
+    k.el.classList.add("dying");
+    setTimeout(() => k.el.remove(), 240);
+  } else {
+    k.el.remove();
+  }
+}
+
+function fallLoop(timestamp) {
+  if (!fall || !fall.running) return;
+  if (!fall.lastFrame) fall.lastFrame = timestamp;
+  let dt = (timestamp - fall.lastFrame) / 1000;
+  fall.lastFrame = timestamp;
+  if (dt > 0.1) dt = 0.1; // タブ復帰などの巨大dtを抑制
+
+  fall.spawnTimer += dt * 1000;
+  if (fall.spawnTimer >= fall.spawnInterval && fall.keys.length < fallConcurrentCap()) {
+    fall.spawnTimer = 0;
+    fallSpawnKey();
+  }
+
+  for (let i = fall.keys.length - 1; i >= 0; i--) {
+    const k = fall.keys[i];
+    k.y += k.speed * dt;
+    if (k.y >= FALL_CONFIG.dangerLineRatio) {
+      fallBreakThrough(k);
+    } else {
+      positionFallKey(k);
+      k.el.classList.toggle("near", k.y > FALL_CONFIG.dangerLineRatio - 0.18);
+    }
+  }
+
+  if (fall.running) fallRafId = requestAnimationFrame(fallLoop);
+}
+
+function fallBreakThrough(k) {
+  const perf = fall.perf[k.char] || (fall.perf[k.char] = { kills: 0, totalMs: 0, crossed: 0 });
+  perf.crossed += 1;
+  recordKeyAttempt(k.char, false);
+  removeFallKey(k, false);
+  renderFallKeyboard();
+  if (k.type === "golden") return; // 黄金は逃しても体力は減らない（ボーナスを逃すだけ）
+  fall.hearts -= 1;
+  fallResetCombo();
+  triggerFallDamage();
+  renderFallHud();
+  if (fall.hearts <= 0) finishFallGame();
+}
+
+function fallResetCombo() {
+  fall.combo = 0;
+  if (fall.fever) {
+    fall.fever = false;
+    els.fallField.classList.remove("fever");
+  }
+}
+
+function fallComboMultiplier() {
+  return Math.min(3, 1 + Math.floor(fall.combo / 10) * 0.5);
+}
+
+function handleFallInput(event) {
+  if (!fall || !fall.running) return;
+  if (els.fall.classList.contains("hidden")) return;
+  if (event.key.length !== 1) return;
+  const key = event.key.toLowerCase();
+  if (!/[a-z]/.test(key)) return;
+  event.preventDefault();
+  fall.typedKeys += 1;
+
+  let target = null;
+  for (const k of fall.keys) {
+    if (k.char === key && (!target || k.y > target.y)) target = k;
+  }
+  if (target) {
+    fallDestroy(target);
+  } else {
+    fall.misTaps += 1;
+    fallResetCombo();
+    flashFallKey(key, "miss");
+    renderFallHud();
+  }
+}
+
+function fallDestroy(k) {
+  const elapsed = Date.now() - k.spawnedAt;
+  const perf = fall.perf[k.char] || (fall.perf[k.char] = { kills: 0, totalMs: 0, crossed: 0 });
+  perf.kills += 1;
+  perf.totalMs += elapsed;
+  recordKeyAttempt(k.char, true);
+
+  fall.kills += 1;
+  fall.combo += 1;
+  fall.maxCombo = Math.max(fall.maxCombo, fall.combo);
+
+  const comboMult = fallComboMultiplier();
+  let baseScore = 100;
+  let baseXp = 1;
+  if (k.type === "fast") { baseScore = 180; baseXp = 2; }
+  if (k.type === "weak") { baseScore += 40; baseXp += 1; }
+  if (k.type === "golden") {
+    baseScore = 250;
+    baseXp = 6;
+    fall.hearts = Math.min(FALL_CONFIG.maxHearts, fall.hearts + 1);
+    spawnFallFloatingText(k, "+1 たいりょく", "heal");
+  }
+  const gained = Math.round(baseScore * comboMult * (1 + (fall.level - 1) * 0.04));
+  fall.score += gained;
+  fallEarnXp(baseXp * (fall.fever ? 2 : 1) + Math.floor(fall.combo / 10), { kind: "kill", char: k.char });
+
+  spawnFallSpark(k);
+  spawnFallFloatingText(k, `+${gained}`, "xp");
+  triggerFallCheer();
+  removeFallKey(k, true);
+  flashFallKey(k.char, "hit");
+
+  if (!fall.fever && fall.combo >= FALL_CONFIG.feverCombo) {
+    fall.fever = true;
+    els.fallField.classList.add("fever");
+    showFallBanner("フィーバー！ XP2倍ジュリ！", true);
+  }
+
+  fallMaybeLevelUp();
+  renderFallHud();
+  renderFallKeyboard();
+}
+
+function fallEarnXp(amount, detail) {
+  const xp = earnXp(amount, { mode: fall.mode, detail });
+  fall.xpEarned += xp;
+  els.fallXp.textContent = fall.xpEarned;
+  return xp;
+}
+
+function fallMaybeLevelUp() {
+  const nextLevel = Math.min(FALL_CONFIG.maxLevel, 1 + Math.floor(fall.kills / FALL_CONFIG.killsPerLevel));
+  if (nextLevel <= fall.level) return;
+  fall.level = nextLevel;
+  fall.spawnInterval = Math.max(FALL_CONFIG.minSpawnMs, FALL_CONFIG.baseSpawnMs - (fall.level - 1) * FALL_CONFIG.spawnDecPerLevel);
+  fallRecomputePool();
+  fallEarnXp(8 + fall.level, { kind: "levelup", level: fall.level });
+  if (fall.pool.length <= FALL_CONFIG.minPool + 1) {
+    showFallBanner(`Lv.${fall.level}！ 苦手キー総仕上げジュリ！`, false);
+  } else {
+    showFallBanner(`Lv.${fall.level} アップ！ 加速するジュリ！`, false);
+  }
+}
+
+function spawnFallSpark(k) {
+  const rect = els.fallField.getBoundingClientRect();
+  const px = k.x * rect.width;
+  const py = k.y * rect.height;
+  for (let i = 0; i < 6; i++) {
+    const s = document.createElement("span");
+    s.className = "fall-spark";
+    s.style.left = `${px}px`;
+    s.style.top = `${py}px`;
+    const angle = (Math.PI * 2 * i) / 6;
+    s.style.setProperty("--dx", `${Math.cos(angle) * 36}px`);
+    s.style.setProperty("--dy", `${Math.sin(angle) * 36}px`);
+    if (k.type === "golden") s.style.background = "#fff1a8";
+    els.fallField.append(s);
+    setTimeout(() => s.remove(), 500);
+  }
+}
+
+function spawnFallFloatingText(k, text, cls) {
+  const t = document.createElement("div");
+  t.className = `fall-floating-text ${cls || ""}`;
+  t.textContent = text;
+  t.style.left = `${k.x * 100}%`;
+  t.style.top = `${k.y * 100}%`;
+  els.fallField.append(t);
+  setTimeout(() => t.remove(), 780);
+}
+
+function showFallBanner(text, isFever) {
+  els.fallBanner.textContent = text;
+  els.fallBanner.classList.remove("hidden", "show", "fever");
+  els.fallBanner.classList.toggle("fever", !!isFever);
+  void els.fallBanner.offsetWidth;
+  els.fallBanner.classList.add("show");
+  setTimeout(() => els.fallBanner.classList.add("hidden"), 1100);
+}
+
+function triggerFallDamage() {
+  els.fallField.classList.add("shake");
+  setTimeout(() => els.fallField.classList.remove("shake"), 220);
+  els.fallDefender.classList.remove("cheer");
+  els.fallDefender.classList.add("hit");
+  setTimeout(() => els.fallDefender.classList.remove("hit"), 360);
+}
+
+function triggerFallCheer() {
+  els.fallDefender.classList.remove("cheer");
+  void els.fallDefender.offsetWidth;
+  els.fallDefender.classList.add("cheer");
+  const chirps = ["ジュリ！", "ジュリリ〜", "やったジュリ！", "ナイスジュリ！"];
+  els.fallChirp.textContent = chirps[fall.kills % chirps.length];
+}
+
+function renderFallHud() {
+  els.fallScore.textContent = fall.score;
+  els.fallCombo.textContent = fall.combo;
+  els.fallLevel.textContent = fall.level;
+  els.fallXp.textContent = fall.xpEarned;
+  els.fallHearts.innerHTML = renderHearts(fall.hearts);
+  const inLevel = fall.kills % FALL_CONFIG.killsPerLevel;
+  const fill = fall.level >= FALL_CONFIG.maxLevel ? 100 : Math.round((inLevel / FALL_CONFIG.killsPerLevel) * 100);
+  els.fallLevelFill.style.width = `${fill}%`;
+  els.fallPoolTag.textContent = `のこりキー: ${fall.pool.length}`;
+  els.fallField.classList.toggle("danger", fall.hearts <= 2 && fall.running);
+}
+
+function renderHearts(hearts) {
+  let html = "";
+  for (let i = 0; i < FALL_CONFIG.maxHearts; i++) {
+    html += i < hearts ? "●" : '<span class="lost">●</span>';
+  }
+  return html;
+}
+
+function renderFallKeyboard() {
+  if (!els.fallKeyboard || !fall) return;
+  const active = new Set(fall.keys.map((k) => k.char));
+  els.fallKeyboard.querySelectorAll(".key").forEach((key) => {
+    key.classList.remove("target", "hit", "miss");
+    if ([...active].some((char) => keyMatchesTarget(key, char))) key.classList.add("target");
+  });
+}
+
+function flashFallKey(char, className) {
+  if (!els.fallKeyboard) return;
+  const keys = [...els.fallKeyboard.querySelectorAll(".key")].filter((key) => keyMatchesTarget(key, char));
+  keys.forEach((key) => key.classList.add(className));
+  setTimeout(() => keys.forEach((key) => key.classList.remove(className)), 200);
+}
+
+function finishFallGame() {
+  fall.running = false;
+  if (fallRafId) cancelAnimationFrame(fallRafId);
+  fallRafId = null;
+  els.fallField.querySelectorAll(".fall-key").forEach((el) => el.classList.add("dying"));
+  fall.keys = [];
+  els.fallField.classList.remove("danger", "fever");
+
+  const survivalBonus = Math.floor(fall.score / 250) + fall.level * 3 + Math.floor(fall.maxCombo / 5);
+  fallEarnXp(survivalBonus, { kind: "finish", score: fall.score });
+  const accuracy = fall.typedKeys > 0 ? Math.round((fall.kills / fall.typedKeys) * 100) : 100;
+  renderFallResult(accuracy);
+}
+
+function renderFallResult(accuracy) {
+  els.fallResult.classList.remove("hidden");
+  els.fallRank.textContent = fallRank(accuracy);
+  els.fallFinalScore.textContent = fall.score;
+  els.fallFinalLevel.textContent = fall.level;
+  els.fallFinalKills.textContent = fall.kills;
+  els.fallFinalCombo.textContent = fall.maxCombo;
+  els.fallFinalAccuracy.textContent = `${accuracy}%`;
+  els.fallFinalXp.textContent = fall.xpEarned;
+  els.fallResultTip.textContent = fallTip(accuracy);
+  const ledger = loadXpLedger();
+  els.fallXpNote.textContent = `Shimamaru-task へ ${fall.xpEarned} XP を持ち帰ったジュリ！（未送信 ${ledger.pending} / 累計 ${ledger.lifetime}）`;
+}
+
+function fallRank(accuracy) {
+  const power = fall.level * 5 + fall.kills * 0.4 + accuracy * 0.4 + fall.maxCombo;
+  if (power >= 160 && accuracy >= 92) return "S";
+  if (power >= 110) return "A";
+  if (power >= 70) return "B";
+  return "C";
+}
+
+function fallTip(accuracy) {
+  const remaining = fall.pool.map(formatKey).join("、");
+  return `命中率 ${accuracy}%！ いま残った苦手キーは ${remaining}。何度も撃ち落として整えるジュリ！`;
+}
+
+function retryFall() {
+  if (fall) startFall(fall.mode);
+}
+
 document.addEventListener("keydown", handleInput);
   document.addEventListener("keydown", handleTutorialInput);
+document.addEventListener("keydown", handleFallInput);
+window.addEventListener("message", handleParentMessage);
 document.addEventListener("click", focusInput);
 window.addEventListener("resize", () => {
   if (!els.game.classList.contains("hidden")) renderGameKeyboardTarget();
@@ -2626,6 +3263,11 @@ els.startPastedText.addEventListener("click", showPasteScreen);
 els.startChallenge.addEventListener("click", () => startGame("challenge"));
 els.startLongformChallenge.addEventListener("click", () => startGame("longformChallenge"));
 els.startSymbols.addEventListener("click", () => startGame("symbols"));
+els.startFallAll.addEventListener("click", () => startFall("fallAll"));
+els.startFallWeak.addEventListener("click", () => startFall("fallWeak"));
+els.fallBackToTitle.addEventListener("click", showTitle);
+els.fallRetry.addEventListener("click", retryFall);
+els.fallResultToTitle.addEventListener("click", showTitle);
 els.pasteToTitle.addEventListener("click", showTitle);
 els.pasteText.addEventListener("input", updatePastePreview);
 els.startPastedPractice.addEventListener("click", startPastedPractice);
@@ -2676,6 +3318,7 @@ els.difficultyButtons.forEach((button) => {
 renderRecords();
 renderSchedule();
 renderReminder();
+renderXpSummary();
 renderBgm();
 restoreBgmTracks();
 startReminderWatcher();

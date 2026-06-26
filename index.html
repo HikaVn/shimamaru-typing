@@ -92,6 +92,13 @@
                     <button class="secondary" id="startSymbols">記号・数字</button>
                   </div>
                 </section>
+                <section class="mode-group mode-group-fall">
+                  <h2>苦手特訓（落ちものキー）</h2>
+                  <div class="mode-actions">
+                    <button class="secondary" id="startFallAll">まんべんなく</button>
+                    <button class="secondary" id="startFallWeak">いきなり苦手</button>
+                  </div>
+                </section>
                 <section class="mode-group">
                   <h2>長文</h2>
                   <div class="mode-actions">
@@ -162,6 +169,10 @@
               <div class="weak-key-panel">
                 <span>苦手キー</span>
                 <strong id="weakKeysSummary">まだ記録がありません</strong>
+              </div>
+              <div class="weak-key-panel xp-panel">
+                <span>Shimamaruへ持ち帰るXP</span>
+                <strong id="xpSummary">0 XP</strong>
               </div>
             </div>
             <details class="options-panel">
@@ -485,6 +496,71 @@
             <button class="primary" id="retry">もう一度</button>
             <button class="primary hidden" id="resultNextStory">次へ</button>
             <button class="secondary" id="resultToTitle">タイトルへ</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="fall hidden" id="fallScreen">
+        <header class="hud fall-hud">
+          <button class="icon-button" id="fallBackToTitle" aria-label="タイトルへ戻る">←</button>
+          <div class="meter fall-hearts-meter">
+            <span>たいりょく</span>
+            <strong id="fallHearts" class="fall-hearts">●●●●●</strong>
+          </div>
+          <div class="meter">
+            <span id="fallModeLabel">まんべんなく</span>
+            <strong>Lv.<span id="fallLevel">1</span></strong>
+          </div>
+          <div class="meter">
+            <span>スコア</span>
+            <strong id="fallScore">0</strong>
+          </div>
+          <div class="meter">
+            <span>コンボ</span>
+            <strong id="fallCombo">0</strong>
+          </div>
+          <div class="meter">
+            <span>獲得XP</span>
+            <strong id="fallXp">0</strong>
+          </div>
+        </header>
+
+        <div class="fall-stage">
+          <div class="fall-field" id="fallField" aria-label="落ちてくるキー">
+            <div class="fall-pool-tag" id="fallPoolTag">のこりキー: 26</div>
+            <div class="fall-level-bar" aria-hidden="true"><span id="fallLevelFill"></span></div>
+            <div class="fall-danger-line" aria-hidden="true"></div>
+            <div class="fall-banner hidden" id="fallBanner"></div>
+            <div class="fall-defender" id="fallDefender" aria-hidden="true">
+              <div class="character-rig">
+                <img class="bird" src="shimaenaga-main.png" alt="">
+                <span class="chirp-mark" id="fallChirp">ジュリ</span>
+              </div>
+            </div>
+          </div>
+          <p class="fall-hint">落ちてくるキーをタイプして撃墜！ ラインを割られると体力が減るジュリ。</p>
+        </div>
+
+        <section class="keyboard game-keyboard" id="fallKeyboard" aria-label="入力ガイドキーボード"></section>
+
+        <div class="fall-result hidden" id="fallResult">
+          <div class="result-box">
+            <p class="eyebrow">リザルト</p>
+            <h2 id="fallRank">A</h2>
+            <div class="result-grid">
+              <div><span>スコア</span><strong id="fallFinalScore">0</strong></div>
+              <div><span>到達Lv</span><strong id="fallFinalLevel">1</strong></div>
+              <div><span>撃墜数</span><strong id="fallFinalKills">0</strong></div>
+              <div><span>最大コンボ</span><strong id="fallFinalCombo">0</strong></div>
+              <div><span>命中率</span><strong id="fallFinalAccuracy">0%</strong></div>
+              <div><span>獲得XP</span><strong id="fallFinalXp">0</strong></div>
+            </div>
+            <p class="tip" id="fallResultTip"></p>
+            <p class="fall-xp-note" id="fallXpNote"></p>
+            <div class="title-actions">
+              <button class="primary" id="fallRetry">もう一度</button>
+              <button class="secondary" id="fallResultToTitle">タイトルへ</button>
+            </div>
           </div>
         </div>
       </section>
