@@ -750,7 +750,8 @@ function setupGameKeyboard() {
   applyKeyboardLayout();
 }
 
-function setupKeyboardFingerOverlay() {
+function setupKeyboardFingerOverlay(targetKeyboard = els.gameKeyboard) {
+  if (!targetKeyboard) return;
   const overlay = document.createElement("div");
   overlay.className = "keyboard-hand-overlay";
   overlay.setAttribute("aria-hidden", "true");
@@ -777,7 +778,7 @@ function setupKeyboardFingerOverlay() {
   status.className = "keyboard-hand-status";
   status.setAttribute("aria-live", "polite");
   status.innerHTML = '<span>次キー</span><strong>-</strong>';
-  els.gameKeyboard.append(overlay, status);
+  targetKeyboard.append(overlay, status);
 }
 
 function loadKeyboardLayout() {
@@ -1922,7 +1923,15 @@ function renderKeyboardTarget(target) {
   });
 }
 
+// 手ガイド描画系は「いまどのキーボードに描くか」を共有変数で切り替える。
+// 描画は同期的なので、入口で対象を設定してから各ヘルパーを呼べば安全。
+let activeFingerKeyboard = null;
+function getActiveKeyboard() {
+  return activeFingerKeyboard || els.gameKeyboard;
+}
+
 function renderGameKeyboardTarget() {
+  activeFingerKeyboard = els.gameKeyboard;
   const nextKey = getNextTypingKey();
   els.gameKeyboard.querySelectorAll(".key").forEach((key) => {
     key.classList.remove("target", "hit", "miss");
@@ -1942,17 +1951,19 @@ function getFingerForKey(key) {
 }
 
 function getPhysicalKeyForTarget(target) {
-  if (!target || !els.gameKeyboard) return target;
-  const keyEl = [...els.gameKeyboard.querySelectorAll(".key")].find((key) => keyMatchesTarget(key, target));
+  const keyboard = getActiveKeyboard();
+  if (!target || !keyboard) return target;
+  const keyEl = [...keyboard.querySelectorAll(".key")].find((key) => keyMatchesTarget(key, target));
   return keyEl?.dataset.key || target;
 }
 
 function renderFingerGuide(nextKey) {
-  const overlay = els.gameKeyboard.querySelector(".keyboard-hand-overlay");
+  const keyboard = getActiveKeyboard();
+  const overlay = keyboard.querySelector(".keyboard-hand-overlay");
   if (!overlay) return;
   const activeFingerId = getFingerForKey(nextKey);
   const targetKeyEl = getTargetKeyElement(nextKey);
-  const keyboardRect = els.gameKeyboard.getBoundingClientRect();
+  const keyboardRect = keyboard.getBoundingClientRect();
 
   overlay.querySelectorAll(".keyboard-hand").forEach((hand) => {
     const handSide = hand.dataset.hand;
@@ -1975,16 +1986,16 @@ function renderFingerGuide(nextKey) {
 
 function getTargetKeyElement(target) {
   if (!target) return null;
-  return [...els.gameKeyboard.querySelectorAll(".key")].find((key) => keyMatchesTarget(key, target)) || null;
+  return [...getActiveKeyboard().querySelectorAll(".key")].find((key) => keyMatchesTarget(key, target)) || null;
 }
 
 function getHomeKeyElement(fingerId) {
   const homeKey = FINGER_HOME_KEYS[fingerId];
-  return [...els.gameKeyboard.querySelectorAll(".key")].find((key) => key.dataset.key === homeKey) || null;
+  return [...getActiveKeyboard().querySelectorAll(".key")].find((key) => key.dataset.key === homeKey) || null;
 }
 
 function getKeyboardRelativeRect(element) {
-  const keyboardRect = els.gameKeyboard.getBoundingClientRect();
+  const keyboardRect = getActiveKeyboard().getBoundingClientRect();
   const rect = element.getBoundingClientRect();
   return {
     left: rect.left - keyboardRect.left,
@@ -2006,7 +2017,7 @@ function getHandLayout(handSide) {
     .map(getKeyboardRelativeRect);
   if (!homeRects.length) return null;
   const keyHeight = homeRects[0].height;
-  const keyboardHeight = els.gameKeyboard.getBoundingClientRect().height;
+  const keyboardHeight = getActiveKeyboard().getBoundingClientRect().height;
   const knuckleY = keyboardHeight - keyHeight * 0.22;
   return { knuckleY, keyHeight };
 }
@@ -2153,7 +2164,7 @@ function segmentToRoundedPath(segment) {
 }
 
 function renderKeyboardFingerStatus(nextKey) {
-  const status = els.gameKeyboard.querySelector(".keyboard-hand-status");
+  const status = getActiveKeyboard().querySelector(".keyboard-hand-status");
   if (!status) return;
   status.querySelector("strong").textContent = nextKey ? formatKey(nextKey) : "-";
 }
@@ -2169,6 +2180,7 @@ function flashTutorialKey(target, className) {
 }
 
 function flashGameKey(target, className) {
+  activeFingerKeyboard = els.gameKeyboard;
   const keyEls = getKeyElements(target, els.gameKeyboard);
   keyEls.forEach((keyEl) => keyEl.classList.add(className));
   setTimeout(() => keyEls.forEach((keyEl) => keyEl.classList.remove(className)), 220);
@@ -2178,7 +2190,7 @@ function flashGameKey(target, className) {
 function flashFingerGuide(target, className) {
   const fingerId = getFingerForKey(target);
   if (!fingerId) return;
-  const hands = [...els.gameKeyboard.querySelectorAll(".keyboard-hand")]
+  const hands = [...getActiveKeyboard().querySelectorAll(".keyboard-hand")]
     .filter((hand) => isFingerOnHand(fingerId, hand.dataset.hand));
   hands.forEach((hand) => hand.classList.add(className));
   setTimeout(() => hands.forEach((hand) => hand.classList.remove(className)), 220);
@@ -2810,6 +2822,7 @@ function createFallState(mode) {
     spawnInterval: FALL_CONFIG.baseSpawnMs,
     lastFrame: 0,
     nextId: 1,
+    guideChar: null,
     startedAt: Date.now()
   };
 }
@@ -2844,6 +2857,7 @@ function setupFallKeyboard() {
   const tutorialKeyboard = document.querySelector(".tutorial .keyboard");
   if (!tutorialKeyboard || !els.fallKeyboard) return;
   els.fallKeyboard.innerHTML = tutorialKeyboard.innerHTML;
+  setupKeyboardFingerOverlay(els.fallKeyboard); // 他モードと同じ手の形ガイドを表示
   applyKeyboardLayout();
 }
 
@@ -2988,6 +3002,12 @@ function fallLoop(timestamp) {
     }
   }
 
+  // 落下中に fast キーが追い越したときも、最下（最も急ぎ）のキーに手ガイドを追従させる。
+  // updateFallFingerGuide は対象キーが変わったときだけ再描画するので毎フレームでも軽い。
+  let lowest = null;
+  for (const k of fall.keys) { if (!lowest || k.y > lowest.y) lowest = k; }
+  updateFallFingerGuide(lowest ? lowest.char : "");
+
   if (fall.running) fallRafId = requestAnimationFrame(fallLoop);
 }
 
@@ -3070,7 +3090,6 @@ function fallDestroy(k) {
   spawnFallFloatingText(k, `+${gained}`, "xp");
   triggerFallCheer();
   removeFallKey(k, true);
-  flashFallKey(k.char, "hit");
 
   if (!fall.fever && fall.combo >= FALL_CONFIG.feverCombo) {
     fall.fever = true;
@@ -3081,6 +3100,8 @@ function fallDestroy(k) {
   fallMaybeLevelUp();
   renderFallHud();
   renderFallKeyboard();
+  // renderFallKeyboard が hit/target を一旦消すので、フラッシュは最後に当てて残す。
+  flashFallKey(k.char, "hit");
 }
 
 function fallEarnXp(amount, detail) {
@@ -3185,6 +3206,19 @@ function renderFallKeyboard() {
     key.classList.remove("target", "hit", "miss");
     if ([...active].some((char) => keyMatchesTarget(key, char))) key.classList.add("target");
   });
+  // いちばん下（最も急ぎ）のキーに手の形ガイドを合わせる
+  let lowest = null;
+  fall.keys.forEach((k) => { if (!lowest || k.y > lowest.y) lowest = k; });
+  updateFallFingerGuide(lowest ? lowest.char : "");
+}
+
+// 苦手特訓キーボードの手ガイド更新。対象キーが変わったときだけ描き直す。
+function updateFallFingerGuide(char) {
+  if (!fall) return;
+  if (char === fall.guideChar) return;
+  fall.guideChar = char;
+  activeFingerKeyboard = els.fallKeyboard;
+  renderFingerGuide(char);
 }
 
 function flashFallKey(char, className) {
@@ -3192,6 +3226,8 @@ function flashFallKey(char, className) {
   const keys = [...els.fallKeyboard.querySelectorAll(".key")].filter((key) => keyMatchesTarget(key, char));
   keys.forEach((key) => key.classList.add(className));
   setTimeout(() => keys.forEach((key) => key.classList.remove(className)), 200);
+  activeFingerKeyboard = els.fallKeyboard;
+  flashFingerGuide(char, className);
 }
 
 function finishFallGame() {
@@ -3246,6 +3282,10 @@ window.addEventListener("message", handleParentMessage);
 document.addEventListener("click", focusInput);
 window.addEventListener("resize", () => {
   if (!els.game.classList.contains("hidden")) renderGameKeyboardTarget();
+  if (fall && fall.running && !els.fall.classList.contains("hidden")) {
+    activeFingerKeyboard = els.fallKeyboard;
+    renderFingerGuide(fall.guideChar || "");
+  }
 });
 setupGameKeyboard();
 els.keyboardChoiceButtons.forEach((button) => {
