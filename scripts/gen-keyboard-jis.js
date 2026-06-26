@@ -77,14 +77,16 @@ rows.push(layoutRow(4, [
 ]));
 
 // 行5: 下段（Shift + ZXCV... + \ろ）。右側に矢印▲。
+// 実機の標準スタッガーに合わせ、左Shift=2.25u(9列)。Z段はホーム段から0.5uずれる
+// （Q→A=0.25u, A→Z=0.5u）。右Shiftは矢印▲のぶん短く0.75u(3列)。行幅(56)は不変。
 rows.push(layoutRow(5, [
-  { w:8, label:"shift", cls:"kb-fn", deco:true },
+  { w:9, label:"shift", cls:"kb-fn", deco:true },
   L("z"), L("x"), L("c"), L("v"), L("b"), L("n"), L("m"),
   { w:4, code:",", label:",", sub:"ね" },
   { w:4, code:".", label:".", sub:"る" },
   { w:4, code:"/", label:"/", sub:"め" },
   { w:4, label:"\\", sub:"ろ", cls:"kb-jp", deco:true },
-  { w:4, label:"shift", cls:"kb-fn", deco:true },
+  { w:3, label:"shift", cls:"kb-fn", deco:true },
 ]));
 
 // 行6: スペース行（JIS の親指まわり）。写真に合わせ ctrl の隣に fn を追加。
